@@ -6,14 +6,10 @@ import MusicTrack
 import android.content.ContentUris
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,21 +17,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ColorScheme
@@ -50,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -135,22 +125,6 @@ class MainActivity : ComponentActivity() {
         return null // Retorna null se o endereço IP não for encontrado
     }
 
-    private fun openWebPage(context: Context, url: String) {
-        try {
-            val webpage: Uri = Uri.parse(url)
-            val intent = Intent(Intent.ACTION_VIEW, webpage).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-
-            // Forçar seletor para evitar bloqueio
-            val chooser = Intent.createChooser(intent, "Chose a browser")
-            context.startActivity(chooser)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(context, "Erro to open URL!", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
@@ -167,19 +141,17 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Verifica se a permissão foi concedida
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                // Permissão já concedida
-                println("Permissão já concedida")
-            } else {
-                // Solicita a permissão
-                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
+        // Verifica se a permissão foi concedida
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permissão já concedida
+            println("Permissão já concedida")
+        } else {
+            // Solicita a permissão
+            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
@@ -196,7 +168,6 @@ class MainActivity : ComponentActivity() {
                     name = "Server 🛜",
                     onFetchFiles = { restartServer() },
                     musicList = getMusicTracks(this),
-                    openLinkToMusic = { id -> openWebPage(this, "http://localhost:8080?audio_id=$id") }, // @DEPRECATED - Use AudioDetailsBottomSheet instead
                     localNetworkIp = getLocalIpAddress(),
                     colors = colors
                 )
@@ -213,7 +184,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ListOfMusic(
     musicList: List<MusicTrack> = emptyList(),
-    openLinkToMusic: (id: Long) -> Unit, // @DEPRECATED - Use AudioDetailsBottomSheet instead
     colors: ColorScheme,
     localNetworkIp: String?
 ) {
@@ -287,7 +257,6 @@ fun ListOfMusic(
 fun Main(
     name: String, onFetchFiles: () -> Unit,
     musicList: List<MusicTrack> = emptyList(),
-    openLinkToMusic: (id: Long) -> Unit, // @DEPRECATED - Use AudioDetailsBottomSheet instead
     localNetworkIp: String?,
     colors: ColorScheme
 ) {
@@ -323,7 +292,6 @@ fun Main(
                     ) {
                         ListOfMusic(
                             musicList,
-                            openLinkToMusic,
                             colors,
                             localNetworkIp
                         )
@@ -348,7 +316,6 @@ fun MainPreview() {
         name = "Server 🛜",
         onFetchFiles = {},
         musicList = musicList,
-        openLinkToMusic = {},
         localNetworkIp = "127.0.0.1",
         colors = colors,
     )
