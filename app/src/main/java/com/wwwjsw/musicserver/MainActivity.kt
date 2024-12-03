@@ -214,7 +214,8 @@ class MainActivity : ComponentActivity() {
 fun ListOfMusic(
     musicList: List<MusicTrack> = emptyList(),
     openLinkToMusic: (id: Long) -> Unit, // @DEPRECATED - Use AudioDetailsBottomSheet instead
-    colors: ColorScheme
+    colors: ColorScheme,
+    localNetworkIp: String?
 ) {
     val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
     var selectedDetails by remember { mutableStateOf("") }
@@ -228,7 +229,9 @@ fun ListOfMusic(
                     .clickable {
                         selectedDetails =
                             "Artist: ${music.artist ?: "Unknown"}\nDuração: ${((music.duration ?: 0) / 1000) / 60}:${((music.duration ?: 0) / 1000) % 60}\nÁlbum: ${music.album ?: "Unknown"}"
-                        audioDetailsBottomSheet.open(selectedDetails, music.id)
+                        if (localNetworkIp != null) {
+                            audioDetailsBottomSheet.open(selectedDetails, music.id, localNetworkIp)
+                        }
                     }
                     .background(colors.background)
                     .fillMaxWidth()
@@ -288,8 +291,6 @@ fun Main(
     localNetworkIp: String?,
     colors: ColorScheme
 ) {
-    val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
-
     MusicServerTheme {
         Box(modifier = Modifier
             .background(colors.background)
@@ -320,7 +321,12 @@ fun Main(
                         .background(colors.onBackground)
                         .fillMaxWidth()
                     ) {
-                        ListOfMusic(musicList, openLinkToMusic, colors)
+                        ListOfMusic(
+                            musicList,
+                            openLinkToMusic,
+                            colors,
+                            localNetworkIp
+                        )
                     }
                 }
             }

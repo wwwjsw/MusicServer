@@ -5,7 +5,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.wwwjsw.musicserver.GlideImage
+import com.wwwjsw.musicserver.QrCodeView
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -14,14 +14,16 @@ class AudioDetailsBottomSheet {
     private var isVisible by mutableStateOf(false)
     private var trackDetailsState by mutableStateOf("")
     private var trackID by mutableStateOf(0L)
+    private var localAddr by mutableStateOf("")
 
     /**
      * Função para abrir o BottomSheet com os detalhes fornecidos.
      */
-    fun open(details: String, id: Long) {
+    fun open(details: String, id: Long, localNetworkIp: String) {
         trackDetailsState = details
         trackID = id
         isVisible = true
+        localAddr = localNetworkIp
     }
 
     /**
@@ -62,10 +64,9 @@ class AudioDetailsBottomSheet {
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        GlideImage(
-                            imageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://192.168.1.4:8080?audio_id=${trackID}",
-                            modifier = Modifier.width(160.dp).height(160.dp).align(Alignment.CenterHorizontally),
-                            contentDescription = "Imagem de exemplo"
+                        QrCodeView(
+                            content = "http://${localAddr}:8080?audio_id=${trackID}",
+                            size = 512
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
