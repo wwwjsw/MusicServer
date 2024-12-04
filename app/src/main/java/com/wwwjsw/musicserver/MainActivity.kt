@@ -7,6 +7,7 @@ import android.content.ContentUris
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
@@ -34,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,28 +75,34 @@ class MainActivity : ComponentActivity() {
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DURATION
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
 
-        return context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
-            mutableListOf<MusicTrack>().apply {
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-                    val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE))
-                    val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST))
-                    val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM))
-                    val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
-                    val uri = ContentUris.withAppendedId(audioUri, id).toString()
+        return try {
+            context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
+                mutableListOf<MusicTrack>().apply {
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                        val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)) ?: "Unknown Title"
+                        val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)) ?: "Unknown Artist"
+                        val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
+                        val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
+                        val uri = ContentUris.withAppendedId(audioUri, id).toString()
 
-                    add(MusicTrack(id, title, artist, album, duration, uri))
+                        add(MusicTrack(id, title, artist, album, duration, uri))
+                    }
                 }
-            }
-        } ?: emptyList()
+            } ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("MusicServer", "Error fetching music tracks", e)
+            emptyList()
+        }
     }
 
     private fun startServer() {
         val musicPaths = getMusicPaths(this)
+        loadMusicTracks()
         Log.d("MediaServer", "Music paths: $musicPaths")
         server = MediaServer(8080, this)
 
@@ -125,59 +133,126 @@ class MainActivity : ComponentActivity() {
         return null // Retorna null se o endereço IP não for encontrado
     }
 
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                // Permissão concedida
-                // Aqui você pode executar o código que necessita da permissão
-                println("Permissão concedida")
+    private val requestMultiplePermissionsLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            permissions.entries.forEach { entry ->
+                Log.w("MediaServer", "Permission: ${entry.key}, Granted: ${entry.value}")
+            }
+
+            val allGranted = permissions.all { it.value }
+            if (allGranted) {
+                loadMusicTracks()
             } else {
-                // Permissão negada
-                // Você pode mostrar uma mensagem ou tratar a falta da permissão
-                println("Permissão negada")
+                Log.w("MediaServer", "Not all permissions were granted.")
             }
         }
+
+
+    private fun loadMusicTracks() {
+        val tracks = getMusicTracks(this)
+        musicListState.value = tracks
+        Log.d("MediaServer", "Music tracks loaded: ${tracks.size}  $tracks")
+    }
 
     override fun onStart() {
         super.onStart()
 
-        // Verifica se a permissão foi concedida
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            // Permissão já concedida
-            println("Permissão já concedida")
+        val neededPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
         } else {
-            // Solicita a permissão
-            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        val permissionsToRequest = neededPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            Log.w("MediaServer", "Requesting permissions: $permissionsToRequest")
+            requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            Log.i("MediaServer", "All permissions are already granted.")
+            loadMusicTracks()
         }
     }
+
+    private lateinit var musicListState: MutableState<List<MusicTrack>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        startServer()
+        musicListState = mutableStateOf(emptyList())
 
         setContent {
             MusicServerTheme {
-                val colors = MaterialTheme.colorScheme
-
-                Main(
-                    name = "Server 🛜",
+                MainActivityContent(
                     onFetchFiles = { restartServer() },
-                    musicList = getMusicTracks(this),
                     localNetworkIp = getLocalIpAddress(),
-                    colors = colors
+                    colors = MaterialTheme.colorScheme,
+                    musicListState
                 )
             }
         }
+
+        // Inicie o servidor após configurar o conteúdo
+        startServer()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         server.stop()
+    }
+}
+
+@Composable
+fun MainActivityContent(
+    onFetchFiles: () -> Unit,
+    localNetworkIp: String?,
+    colors: ColorScheme,
+    musicListState: MutableState<List<MusicTrack>>
+) {
+//    val musicList = remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
+    val musicList = remember  { musicListState }
+
+    MusicServerTheme {
+        Box(modifier = Modifier
+            .background(colors.background)
+            .fillMaxWidth()
+            .padding(WindowInsets.statusBars.asPaddingValues())
+        ) {
+            Column {
+                Button(onClick = { onFetchFiles() }, modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.background)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Text(text = "Fetch new files")
+                }
+                if (localNetworkIp != null) {
+                    Text(
+                        text = "Server Address: ${localNetworkIp}:8080",
+                        modifier = Modifier
+                            .align(
+                                Alignment.CenterHorizontally
+                            )
+                            .padding(bottom = 5.dp)
+                            .padding(horizontal = 16.dp),
+                        color = colors.primary
+                    )
+                }
+                Column {
+                    Box(modifier = Modifier
+                        .background(colors.onBackground)
+                        .fillMaxWidth()
+                    ) {
+                        ListOfMusic(
+                            musicList = musicList.value,
+                            colors = colors,
+                            localNetworkIp = localNetworkIp
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -190,7 +265,7 @@ fun ListOfMusic(
     val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
     var selectedDetails by remember { mutableStateOf("") }
 
-    Log.i("MediaServer", "Music tracks: $musicList")
+    Log.i("MediaServer", "Music tracks: $musicList  $localNetworkIp")
 
     audioDetailsBottomSheet.Content {
         LazyColumn {
