@@ -55,7 +55,7 @@ class AudioDetailsBottomSheet {
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = "Detalhes da Faixa",
+                            text = "Track details",
                             style = MaterialTheme.typography.headlineSmall
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -66,11 +66,12 @@ class AudioDetailsBottomSheet {
                         Spacer(modifier = Modifier.height(8.dp))
                         QrCodeView(
                             content = "http://${localAddr}:8080?audio_id=${trackID}",
-                            size = 512
+                            size = 512,
+                            modifier = Modifier.fillMaxWidth().padding(20.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Fechar",
+                            text = "Close",
                             modifier = Modifier
                                 .align(Alignment.End)
                                 .clickable {

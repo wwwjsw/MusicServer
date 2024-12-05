@@ -50,6 +50,7 @@ import androidx.core.content.ContextCompat
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private lateinit var server: MediaServer
@@ -255,6 +256,13 @@ fun MainActivityContent(
         }
     }
 }
+fun formatMilliseconds(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+
+    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+}
 
 @Composable
 fun ListOfMusic(
@@ -273,7 +281,11 @@ fun ListOfMusic(
                 Column(modifier = Modifier
                     .clickable {
                         selectedDetails =
-                            "Artist: ${music.artist ?: "Unknown"}\nDuração: ${((music.duration ?: 0) / 1000) / 60}:${((music.duration ?: 0) / 1000) % 60}\nÁlbum: ${music.album ?: "Unknown"}"
+                            "Artist: ${music.artist ?: "Unknown"}\nLength: ${music.duration?.let {
+                                formatMilliseconds(
+                                    it
+                                )
+                            }}\nAlbum: ${music.album ?: "Unknown"}"
                         if (localNetworkIp != null) {
                             audioDetailsBottomSheet.open(selectedDetails, music.id, localNetworkIp)
                         }
@@ -312,7 +324,7 @@ fun ListOfMusic(
                     }
                     music.duration?.let {
                         Text(
-                            text = "${((it / 1000) / 60).toString()}:${((it / 1000) % 60).toString()}",
+                            text = formatMilliseconds(it),
                             modifier = Modifier
                                 .padding(6.dp)
                                 .fillMaxWidth(),
