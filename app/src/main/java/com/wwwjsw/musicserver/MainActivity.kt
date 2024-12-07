@@ -256,6 +256,7 @@ fun MainActivityContent(
         }
     }
 }
+
 fun formatMilliseconds(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
