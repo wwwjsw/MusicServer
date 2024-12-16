@@ -18,9 +18,11 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
                 val audioUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, audioId)
                 val parcelFileDescriptor = context.contentResolver.openFileDescriptor(audioUri, "r")
 
-                parcelFileDescriptor?.use { pfd ->
-                    val fileInputStream = FileInputStream(pfd.fileDescriptor)
-                    val fileSize = pfd.statSize
+                if (parcelFileDescriptor != null) {
+                    val fileInputStream = FileInputStream(parcelFileDescriptor.fileDescriptor)
+                    val fileSize = parcelFileDescriptor.statSize
+
+                    parcelFileDescriptor.close()
 
                     val response = newFixedLengthResponse(
                         Response.Status.OK,
@@ -39,9 +41,9 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
                     response.addHeader("icy-artist", musicArtist)
 
                     return response
-                } ?: run {
-                    newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Audio file not found")
+                } else { newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Audio file not found")
                 }
+
             } else {
                 newFixedLengthResponse(Response.Status.BAD_REQUEST, "text/plain", "Invalid audio ID")
             }
@@ -55,6 +57,5 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
 
             newFixedLengthResponse(Response.Status.OK, "application/json", jsonResponse)
         }
-
     }
 }
