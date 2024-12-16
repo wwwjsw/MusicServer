@@ -50,8 +50,8 @@ class AudioDetailsBottomSheet {
                 Log.d("MusicIntent", "Attempting to play music from URL: $musicUrl")
 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(musicUrl), "audio/*") // Define o tipo MIME como áudio
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) // Garante permissão de leitura se necessário
+                    setDataAndType(Uri.parse(musicUrl), "audio/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
 
                 val resolvedActivity = intent.resolveActivity(context.packageManager)
