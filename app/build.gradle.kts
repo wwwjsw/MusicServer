@@ -51,6 +51,7 @@ android {
 
 dependencies {
     implementation(libs.nanohttpd)
+    implementation(libs.gson)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

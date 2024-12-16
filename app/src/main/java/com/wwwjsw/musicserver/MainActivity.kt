@@ -1,15 +1,11 @@
 package com.wwwjsw.musicserver
 
 import AudioDetailsBottomSheet
-import MediaServer
 import MusicTrack
-import android.content.ContentUris
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -55,56 +51,10 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     private lateinit var server: MediaServer
 
-    private fun getMusicPaths(context: Context): List<String> {
-        val audioUri =  MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(MediaStore.Audio.Media._ID)
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-
-        return context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
-            List(cursor.count) { index ->
-                cursor.moveToPosition(index)
-                val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-                ContentUris.withAppendedId(audioUri, id).toString()
-            }
-        } ?: emptyList()
-    }
-
-    private fun getMusicTracks(context: Context): List<MusicTrack> {
-        val audioUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DURATION
-        )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-
-        return try {
-            context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
-                mutableListOf<MusicTrack>().apply {
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-                        val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)) ?: "Unknown Title"
-                        val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)) ?: "Unknown Artist"
-                        val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
-                        val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
-                        val uri = ContentUris.withAppendedId(audioUri, id).toString()
-
-                        add(MusicTrack(id, title, artist, album, duration, uri))
-                    }
-                }
-            } ?: emptyList()
-        } catch (e: Exception) {
-            Log.e("MusicServer", "Error fetching music tracks", e)
-            emptyList()
-        }
-    }
-
     private fun startServer() {
-        val musicPaths = getMusicPaths(this)
+        val musicPaths = Musics.getMusicPaths(this)
         loadMusicTracks()
-        Log.d("MediaServer", "Music paths: $musicPaths")
+        Log.d("com.wwwjsw.musicserver.MediaServer", "Music paths: $musicPaths")
         server = MediaServer(8080, this)
 
         server.start()
@@ -137,22 +87,22 @@ class MainActivity : ComponentActivity() {
     private val requestMultiplePermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             permissions.entries.forEach { entry ->
-                Log.w("MediaServer", "Permission: ${entry.key}, Granted: ${entry.value}")
+                Log.w("com.wwwjsw.musicserver.MediaServer", "Permission: ${entry.key}, Granted: ${entry.value}")
             }
 
             val allGranted = permissions.all { it.value }
             if (allGranted) {
                 loadMusicTracks()
             } else {
-                Log.w("MediaServer", "Not all permissions were granted.")
+                Log.w("com.wwwjsw.musicserver.MediaServer", "Not all permissions were granted.")
             }
         }
 
 
     private fun loadMusicTracks() {
-        val tracks = getMusicTracks(this)
+        val tracks = Musics.getMusicTracks(this)
         musicListState.value = tracks
-        Log.d("MediaServer", "Music tracks loaded: ${tracks.size}  $tracks")
+        Log.d("com.wwwjsw.musicserver.MediaServer", "Music tracks loaded: ${tracks.size}  $tracks")
     }
 
     override fun onStart() {
@@ -169,10 +119,10 @@ class MainActivity : ComponentActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            Log.w("MediaServer", "Requesting permissions: $permissionsToRequest")
+            Log.w("com.wwwjsw.musicserver.MediaServer", "Requesting permissions: $permissionsToRequest")
             requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
-            Log.i("MediaServer", "All permissions are already granted.")
+            Log.i("com.wwwjsw.musicserver.MediaServer", "All permissions are already granted.")
             loadMusicTracks()
         }
     }
@@ -195,7 +145,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Inicie o servidor após configurar o conteúdo
         startServer()
     }
 
@@ -274,7 +223,7 @@ fun ListOfMusic(
     val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
     var selectedDetails by remember { mutableStateOf("") }
 
-    Log.i("MediaServer", "Music tracks: $musicList  $localNetworkIp")
+    Log.i("com.wwwjsw.musicserver", "Music tracks: $musicList  $localNetworkIp")
 
     audioDetailsBottomSheet.Content {
         LazyColumn {
