@@ -3,6 +3,7 @@ package com.wwwjsw.musicserver
 import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
+import android.system.Os
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
 import java.io.FileInputStream
@@ -16,34 +17,41 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
             val audioId = audioIdString.toLongOrNull()
             if (audioId != null) {
                 val audioUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, audioId)
-                val parcelFileDescriptor = context.contentResolver.openFileDescriptor(audioUri, "r")
 
-                if (parcelFileDescriptor != null) {
-                    val fileInputStream = FileInputStream(parcelFileDescriptor.fileDescriptor)
-                    val fileSize = parcelFileDescriptor.statSize
+                try {
+                    val parcelFileDescriptor = context.contentResolver.openFileDescriptor(audioUri, "r")
 
-                    parcelFileDescriptor.close()
+                    if (parcelFileDescriptor != null) {
+                        val duplicatedFd = Os.dup(parcelFileDescriptor.fileDescriptor)
+                        val fileInputStream = FileInputStream(duplicatedFd)
 
-                    val response = newFixedLengthResponse(
-                        Response.Status.OK,
-                        "audio/mpeg",
-                        fileInputStream,
-                        fileSize
-                    )
+                        val fileSize = parcelFileDescriptor.statSize
 
-                    val musicName = Musics.getMusic(context, audioId).getOrNull()?.title
-                    val musicArtist = Musics.getMusic(context, audioId).getOrNull()?.artist
+                        val response = newFixedLengthResponse(
+                            Response.Status.OK,
+                            "audio/mpeg",
+                            fileInputStream,
+                            fileSize
+                        )
 
-                    response.addHeader("Content-Type", "audio/*")
-                    response.addHeader("Accept-Ranges", "bytes")
+                        val musicName = Musics.getMusic(context, audioId).getOrNull()?.title
+                        val musicArtist = Musics.getMusic(context, audioId).getOrNull()?.artist
 
-                    response.addHeader("icy-name", musicName)
-                    response.addHeader("icy-artist", musicArtist)
+                        response.addHeader("Content-Type", "audio/*")
+                        response.addHeader("Accept-Ranges", "bytes")
 
-                    return response
-                } else { newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Audio file not found")
+                        response.addHeader("icy-name", musicName)
+                        response.addHeader("icy-artist", musicArtist)
+
+                        parcelFileDescriptor.close()
+
+                        return response
+                    } else {
+                        newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Audio file not found")
+                    }
+                } catch (e: Exception) {
+                    newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Error accessing audio file: ${e.message}")
                 }
-
             } else {
                 newFixedLengthResponse(Response.Status.BAD_REQUEST, "text/plain", "Invalid audio ID")
             }
