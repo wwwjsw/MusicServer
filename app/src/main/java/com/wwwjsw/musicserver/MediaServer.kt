@@ -37,7 +37,7 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
                         val musicName = Musics.getMusic(context, audioId).getOrNull()?.title
                         val musicArtist = Musics.getMusic(context, audioId).getOrNull()?.artist
 
-                        response.addHeader("Content-Type", "audio/*")
+                        response.addHeader("Content-Type", "audio/mpeg")
                         response.addHeader("Accept-Ranges", "bytes")
 
                         response.addHeader("icy-name", musicName)
