@@ -161,7 +161,6 @@ fun MainActivityContent(
     colors: ColorScheme,
     musicListState: MutableState<List<MusicTrack>>
 ) {
-//    val musicList = remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     val musicList = remember  { musicListState }
 
     MusicServerTheme {
