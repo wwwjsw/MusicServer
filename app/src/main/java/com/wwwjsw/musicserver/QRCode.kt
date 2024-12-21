@@ -12,6 +12,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.tooling.preview.Preview
 
 fun generateQrCodeBitmap(content: String, width: Int, height: Int): ImageBitmap {
     val hints = Hashtable<EncodeHintType, Any>()
@@ -39,4 +40,10 @@ fun QrCodeView(content: String, size: Int, modifier: Modifier = Modifier) {
         modifier = modifier,
         contentScale = ContentScale.Inside
     )
+}
+
+@Preview
+@Composable
+fun QrCodeViewPreview() {
+    QrCodeView("https://www.google.com", 200)
 }
