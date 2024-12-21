@@ -60,7 +60,7 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
             val response = mapOf(
                 "status" to Response.Status.OK,
                 "data" to musics
-            ).toString()
+            )
             val jsonResponse = Gson().toJson(response)
 
             newFixedLengthResponse(Response.Status.OK, "application/json", jsonResponse)
