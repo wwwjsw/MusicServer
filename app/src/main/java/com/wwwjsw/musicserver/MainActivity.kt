@@ -44,8 +44,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -64,24 +62,6 @@ class MainActivity : ComponentActivity() {
     private fun restartServer() {
         server.stop()
         startServer()
-    }
-
-    private fun getLocalIpAddress(): String? {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            for (networkInterface in interfaces) {
-                val addresses = networkInterface.inetAddresses
-                for (inetAddress in addresses) {
-                    // Ignorar endereços loopback (como 127.0.0.1)
-                    if (!inetAddress.isLoopbackAddress && inetAddress is Inet4Address) {
-                        return inetAddress.hostAddress
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null // Retorna null se o endereço IP não for encontrado
     }
 
     private val requestMultiplePermissionsLauncher =
@@ -138,7 +118,7 @@ class MainActivity : ComponentActivity() {
             MusicServerTheme {
                 MainActivityContent(
                     onFetchFiles = { restartServer() },
-                    localNetworkIp = getLocalIpAddress(),
+                    localNetworkIp = server.getLocalIpAddress(),
                     colors = MaterialTheme.colorScheme,
                     musicListState
                 )

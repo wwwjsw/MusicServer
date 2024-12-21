@@ -7,6 +7,8 @@ import android.system.Os
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
 import java.io.FileInputStream
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
     override fun serve(session: IHTTPSession): Response {
@@ -59,11 +61,30 @@ class MediaServer(port: Int, private val context: Context) : NanoHTTPD(port) {
             val musics = Musics.getMusicTracks(context)
             val response = mapOf(
                 "status" to Response.Status.OK,
+                "ipAddress" to getLocalIpAddress(),
                 "data" to musics
             )
             val jsonResponse = Gson().toJson(response)
 
             newFixedLengthResponse(Response.Status.OK, "application/json", jsonResponse)
         }
+    }
+
+    fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in interfaces) {
+                val addresses = networkInterface.inetAddresses
+                for (inetAddress in addresses) {
+                    // Ignore loopback (like 127.0.0.1)
+                    if (!inetAddress.isLoopbackAddress && inetAddress is Inet4Address) {
+                        return inetAddress.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null // return null if IP was not find
     }
 }
