@@ -44,7 +44,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
-import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private lateinit var server: MediaServer
@@ -170,7 +169,7 @@ fun MainActivityContent(
                 }
                 Column {
                     Box(modifier = Modifier
-                        .background(colors.onBackground)
+                        .background(colors.background)
                         .fillMaxWidth()
                     ) {
                         ListOfMusic(
@@ -183,14 +182,6 @@ fun MainActivityContent(
             }
         }
     }
-}
-
-fun formatMilliseconds(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-
-    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
 
 @Composable
@@ -209,14 +200,14 @@ fun ListOfMusic(
             items(musicList) { music ->
                 Column(modifier = Modifier
                     .clickable {
-                        selectedDetails =
-                            "Artist: ${music.artist ?: "Unknown"}\nLength: ${music.duration?.let {
-                                formatMilliseconds(
-                                    it
-                                )
-                            }}\nAlbum: ${music.album ?: "Unknown"}"
+                        selectedDetails = "TODO: Remove this data"
                         if (localNetworkIp != null) {
-                            audioDetailsBottomSheet.open(selectedDetails, music.id, localNetworkIp)
+                            audioDetailsBottomSheet.open(
+                                selectedDetails,
+                                music.id,
+                                localNetworkIp,
+                                music
+                            )
                         }
                     }
                     .background(colors.background)
@@ -251,9 +242,10 @@ fun ListOfMusic(
                             maxLines = 1,
                         )
                     }
+
                     music.duration?.let {
                         Text(
-                            text = formatMilliseconds(it),
+                            text = formatTime(it),
                             modifier = Modifier
                                 .padding(6.dp)
                                 .fillMaxWidth(),
