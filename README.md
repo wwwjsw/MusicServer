@@ -1,4 +1,4 @@
-# Music Server 
+# Music Server
 
 It lets you create a simplistic, fast, light home server for your music media.
 
@@ -7,7 +7,9 @@ It lets you create a simplistic, fast, light home server for your music media.
 - [x] List data on server root in JSON format (will be used in client app). ![Done](https://img.shields.io/badge/Done-00ff02)
 - [x] Add ipAddress to root server data ![Done](https://img.shields.io/badge/Done-00ff02)
 - [x] Media playback using ExoPlayer. ![Done](https://img.shields.io/badge/Done-00ff02)
-- [ ] HTTPS and byte ranges, needed to search specific parts of file  ![BUG](https://img.shields.io/badge/Bug%20%F0%9F%90%9E-c2c2c2) ![Next](https://img.shields.io/badge/Next-ff0B02)
-- [ ] Add EN and PT-br translation.
-- [ ] Redo UI in top information
-- [ ] Redo UI in List
+- [x] HTTPS and byte ranges needed to forward or rewind a song  ![BUG](https://img.shields.io/badge/Bug%20%F0%9F%90%9E-c2c2c2) ![Done](https://img.shields.io/badge/Done-00ff02)
+- [x] Change nanoHTTPD with Ktor  ![FIX](https://img.shields.io/badge/Fix%20a%20%F0%9F%90%9E-c44cc6) ![Done](https://img.shields.io/badge/Done-00ff02)
+- [x] Redo UI in top information ![Done](https://img.shields.io/badge/Done-00ff02)
+- [x] Redo UI in List ![Done](https://img.shields.io/badge/Done-00ff02)
+- [x] Add an web player ![Done](https://img.shields.io/badge/Done-00ff02)
+- [x] ~~Add EN and PT-br translation~~.  ![Canceled](https://img.shields.io/badge/Canceled-ff0B02)

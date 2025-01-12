@@ -1,9 +1,11 @@
 package com.wwwjsw.musicserver
 
-import AudioDetailsBottomSheet
 import MusicTrack
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -12,7 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.HorizontalDivider
@@ -38,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,11 +55,6 @@ class MainActivity : ComponentActivity() {
 
         server.start()
         musicPaths.forEach {}
-    }
-
-    private fun restartServer() {
-        server.stop()
-        startServer()
     }
 
     private val requestMultiplePermissionsLauncher =
@@ -116,10 +110,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             MusicServerTheme {
                 MainActivityContent(
-                    onFetchFiles = { restartServer() },
                     localNetworkIp = server.getLocalIpAddress(),
                     colors = MaterialTheme.colorScheme,
-                    musicListState
+                    musicListState,
+                    context = this
                 )
             }
         }
@@ -133,14 +127,24 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun openWebPlayer(context: Context, localNetworkIp: String?) {
+    localNetworkIp?.let {
+        val url = "http://$it:8080"
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse(url)
+        }
+        context.startActivity(intent)
+    }
+}
+
 @Composable
 fun MainActivityContent(
-    onFetchFiles: () -> Unit,
     localNetworkIp: String?,
     colors: ColorScheme,
-    musicListState: MutableState<List<MusicTrack>>
+    musicListState: MutableState<List<MusicTrack>>,
+    context: Context
 ) {
-    val musicList = remember  { musicListState }
+    val musicList = remember { musicListState }
 
     MusicServerTheme {
         Box(modifier = Modifier
@@ -149,23 +153,20 @@ fun MainActivityContent(
             .padding(WindowInsets.statusBars.asPaddingValues())
         ) {
             Column {
-                Button(onClick = { onFetchFiles() }, modifier = Modifier
+                if (localNetworkIp != null) {
+                    Box(modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 15.dp)
+                        .align(Alignment.CenterHorizontally)
+                    ) {
+                        QrCodeView(content = "http://${localNetworkIp}:8080", size = 520)
+                    }
+                }
+                Button(onClick = { openWebPlayer(context, localNetworkIp) }, modifier = Modifier
                     .fillMaxWidth()
                     .background(colors.background)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Text(text = "Fetch new files")
-                }
-                if (localNetworkIp != null) {
-                    Text(
-                        text = "Server Address: ${localNetworkIp}:8080",
-                        modifier = Modifier
-                            .align(
-                                Alignment.CenterHorizontally
-                            )
-                            .padding(bottom = 5.dp)
-                            .padding(horizontal = 16.dp),
-                        color = colors.primary
-                    )
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(text = "Open Web Player in Browser")
                 }
                 Column {
                     Box(modifier = Modifier
@@ -210,12 +211,9 @@ fun ListOfMusic(
                             )
                         }
                     }
-                    .background(colors.background)
+                    .background(colors.surface)
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .padding(10.dp)
-                    .border(1.dp, colors.primary, RoundedCornerShape(8.dp)) // Borda arredondada
-                    .clip(RoundedCornerShape(8.dp))
                 ) {
                     music.title?.let {
                         Text(
@@ -223,7 +221,7 @@ fun ListOfMusic(
                             modifier = Modifier
                                 .padding(6.dp)
                                 .fillMaxWidth(),
-                            color = colors.primary,
+                            color = colors.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -238,24 +236,12 @@ fun ListOfMusic(
                             modifier = Modifier
                                 .padding(6.dp)
                                 .fillMaxWidth(),
-                            color = colors.primary,
+                            color = colors.secondary,
                             maxLines = 1,
-                        )
-                    }
-
-                    music.duration?.let {
-                        Text(
-                            text = formatTime(it),
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .fillMaxWidth(),
-                            maxLines = 1,
-                            color = colors.secondary
                         )
                     }
                     HorizontalDivider()
                 }
-//            }
             }
         }
     }

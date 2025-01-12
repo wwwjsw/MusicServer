@@ -105,7 +105,7 @@ fun AudioPlayer(
                 val replayIcon = painterResource(id = R.drawable.twotone_replay_10_24)
                 Icon(
                     replayIcon,
-                    contentDescription = "Voltar 10 segundos"
+                    contentDescription = "Rewind 10 seconds"
                 )
             }
             IconButton(
@@ -117,13 +117,13 @@ fun AudioPlayer(
                 val playIcon = painterResource(id = R.drawable.twotone_play_circle_24)
                 Icon(
                     if (isPlaying) pauseIcon else playIcon,
-                    contentDescription = if (isPlaying) "Pausar" else "Reproduzir"
+                    contentDescription = if (isPlaying) "Pause" else "Play"
                 )
             }
             IconButton(onClick = { exoPlayer.seekTo(minOf(duration, currentPosition + 10000)) }) {
                 val forwardIcon = painterResource(id = R.drawable.twotone_forward_10_24)
 
-                Icon(forwardIcon, contentDescription = "Avançar 10 segundos")
+                Icon(forwardIcon, contentDescription = "Forward 10 seconds")
             }
         }
     }

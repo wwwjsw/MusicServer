@@ -1,3 +1,6 @@
+package com.wwwjsw.musicserver
+
+import MusicTrack
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -7,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wwwjsw.musicserver.AudioPlayer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,7 +46,7 @@ class AudioDetailsBottomSheet {
     fun Content(content: @Composable () -> Unit) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val coroutineScope = rememberCoroutineScope()
-        val musicUrl = "http://${localAddress}:8080?audio_id=${trackID}"
+        val musicUrl = "http://${localAddress}:8080/music?audio_id=${trackID}"
 
         Box(modifier = Modifier.fillMaxSize()) {
             content()
