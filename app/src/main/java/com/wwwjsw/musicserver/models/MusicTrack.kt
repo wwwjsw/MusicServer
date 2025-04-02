@@ -1,3 +1,5 @@
+package com.wwwjsw.musicserver.models
+
 data class MusicTrack(
     val id: Long,
     val title: String?,

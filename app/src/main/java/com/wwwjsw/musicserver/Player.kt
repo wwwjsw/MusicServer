@@ -1,6 +1,6 @@
 package com.wwwjsw.musicserver
 
-import MusicTrack
+import com.wwwjsw.musicserver.models.MusicTrack
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent

@@ -1,6 +1,6 @@
 package com.wwwjsw.musicserver
 
-import MusicTrack
+import com.wwwjsw.musicserver.models.MusicTrack
 import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
@@ -51,6 +51,27 @@ object Musics {
             Log.e("MusicServer", "Error fetching music tracks", e)
             emptyList()
         }
+    }
+
+    fun getAlbums(context: Context): List<Album> {
+        val albumUri = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Audio.Albums._ID,
+            MediaStore.Audio.Albums.ALBUM
+        )
+        val albumList = mutableListOf<Album>()
+
+        context.contentResolver.query(albumUri, projection, null, null, null)?.use { cursor ->
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM)
+            while (cursor.moveToNext()) {
+                val  id  = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID))
+                val album = cursor.getString(albumColumn)
+
+                albumList.add(Album(id, album))
+            }
+        }
+
+        return albumList
     }
 
     fun getMusic(context: Context, id: Long): Result<MusicTrack?> {
