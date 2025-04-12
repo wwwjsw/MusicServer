@@ -79,7 +79,7 @@ class MediaServer(port: Int, private val context: Context) {
                 }
 
                 get("/music/{id}") {
-                    call.respondText("musica ${call.parameters["id"]}")
+                    call.respondText("music ${call.parameters["id"]}")
                 }
 
                 get("/music") {

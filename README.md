@@ -2,6 +2,8 @@
 
 It lets you create a simplistic, fast, light home server for your music media.
 
+![Banner](banner.png)
+
 # ROADMAP, FEATURE REQUESTS AND ISSUES
 ## Was moved to [_here_](https://github.com/wwwjsw/MusicServer/issues)
 

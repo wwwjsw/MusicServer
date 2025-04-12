@@ -57,7 +57,6 @@ android {
 }
 
 dependencies {
-    implementation(libs.nanohttpd)
     implementation(libs.gson)
 
     // TODO: update to  3.x.x
