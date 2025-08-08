@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -23,17 +22,12 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,14 +40,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.wwwjsw.musicserver.local.StaticLists.menuItems
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
+import com.wwwjsw.musicserver.ui.list.ListOfAlbums
+import com.wwwjsw.musicserver.ui.list.ListOfMusic
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
     private lateinit var server: MediaServer
@@ -160,7 +155,7 @@ fun openWebPlayer(context: Context, localNetworkIp: String?) {
     localNetworkIp?.let {
         val url = "http://$it:8080"
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse(url)
+            data = url.toUri()
         }
         context.startActivity(intent)
     }
@@ -260,7 +255,7 @@ fun MainActivityContent(
                         .fillMaxWidth()
                     ) {
                         if (selectionFilter == FilterType.ALL) {
-                            ListOfMusic(
+                            ListOfMusic().Render(
                                 musicList = musicList.value,
                                 colors = colors,
                                 localNetworkIp = localNetworkIp
@@ -268,145 +263,15 @@ fun MainActivityContent(
                         }
                         if (selectionFilter == FilterType.ALBUMS) {
                             Text(text = albumsList.value.toString())
-//                            ListOfAlbums(
-//                                albumList = emptyList(),
-//                                colors = colors,
-//                                localNetworkIp = localNetworkIp
-//                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ListOfMusic(
-    musicList: List<MusicTrack> = emptyList(),
-    colors: ColorScheme,
-    localNetworkIp: String?
-) {
-    val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
-    var selectedDetails by remember { mutableStateOf("") }
-
-    Log.i("com.wwwjsw.musicserver", "Music tracks: $musicList  $localNetworkIp")
-
-    audioDetailsBottomSheet.Content {
-        LazyColumn {
-            items(musicList) { music ->
-                Column(modifier = Modifier
-                    .clickable {
-                        selectedDetails = "TODO: Remove this data"
-                        if (localNetworkIp != null) {
-                            audioDetailsBottomSheet.open(
-                                selectedDetails,
-                                music.id,
-                                localNetworkIp,
-                                music
+                            ListOfAlbums().Render(
+                                albumList = albumsList.value,
+                                localNetworkIp = localNetworkIp,
+                                colors = colors,
                             )
                         }
                     }
-                    .background(colors.surface)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                ) {
-                    music.title?.let {
-                        Text(
-                            text = it,
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .fillMaxWidth(),
-                            color = colors.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    music.artist?.let {
-                        Text(
-                            text = if (it.isBlank() || it.equals(
-                                    "<unknown>",
-                                    ignoreCase = true
-                                )
-                            ) "Unknown Artist" else it,
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .fillMaxWidth(),
-                            color = colors.secondary,
-                            maxLines = 1,
-                        )
-                    }
-                    HorizontalDivider()
                 }
             }
         }
     }
-}
-
-@Composable
-fun Main(
-    name: String, onFetchFiles: () -> Unit,
-    musicList: List<MusicTrack> = emptyList(),
-    localNetworkIp: String?,
-    colors: ColorScheme
-) {
-    MusicServerTheme {
-        Box(modifier = Modifier
-            .background(colors.background)
-            .fillMaxWidth()
-            .padding(WindowInsets.statusBars.asPaddingValues())
-        ) {
-            Column {
-                Button(onClick = { onFetchFiles() }, modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.background)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Text(text = "Fetch new files -  $name")
-                }
-                if (localNetworkIp != null) {
-                    Text(
-                        text = "Server Address: ${localNetworkIp}:8080",
-                        modifier = Modifier
-                            .align(
-                                Alignment.CenterHorizontally
-                            )
-                            .padding(bottom = 5.dp)
-                            .padding(horizontal = 16.dp),
-                        color = colors.primary
-                    )
-                }
-                Column {
-                    Box(modifier = Modifier
-                        .background(colors.onBackground)
-                        .fillMaxWidth()
-                    ) {
-                        ListOfMusic(
-                            musicList,
-                            colors,
-                            localNetworkIp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MainPreview() {
-    val colors = MaterialTheme.colorScheme
-
-    val musicList = listOf(
-        MusicTrack(1, "Title 1", "Artist 1", "Album 1", 1000, ""),
-        MusicTrack(2, "Title 2", "Artist 2", "Album 2", 2000, ""),
-    )
-
-    Main(
-        name = "Server 🛜",
-        onFetchFiles = {},
-        musicList = musicList,
-        localNetworkIp = "127.0.0.1",
-        colors = colors,
-    )
 }
