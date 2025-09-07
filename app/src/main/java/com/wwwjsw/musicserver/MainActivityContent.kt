@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Card
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
@@ -95,7 +94,6 @@ fun MainActivityContent(
                                         )
                                         selectionFilter = item.filter
                                     },
-                                    indication = rememberRipple(bounded = true),
                                     interactionSource = remember {
                                         MutableInteractionSource()
                                     }
