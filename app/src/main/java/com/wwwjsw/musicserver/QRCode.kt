@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 
 fun generateQrCodeBitmap(content: String, width: Int, height: Int): ImageBitmap {
     val hints = Hashtable<EncodeHintType, Any>()
@@ -21,10 +23,10 @@ fun generateQrCodeBitmap(content: String, width: Int, height: Int): ImageBitmap 
     val writer = QRCodeWriter()
     val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, width, height, hints)
 
-    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+    val bmp = createBitmap(width, height, Bitmap.Config.RGB_565)
     for (x in 0 until width) {
         for (y in 0 until height) {
-            bmp.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+            bmp[x, y] = if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
         }
     }
 
