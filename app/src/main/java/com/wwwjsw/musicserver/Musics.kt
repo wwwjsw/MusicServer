@@ -66,8 +66,8 @@ object Musics {
             while (cursor.moveToNext()) {
                 val  id  = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID))
                 val album = cursor.getString(albumColumn)
-
-                albumList.add(Album(id, album))
+                val musics = getMusics(context, id)
+                albumList.add(Album(id, album, musics))
             }
         }
 
@@ -111,5 +111,34 @@ object Musics {
             println("Track not found.")
             return Result.failure(Exception("Track not found"))
         }
+    }
+
+    fun getMusics(context: Context, albumId: Long): List<MusicTrack> {
+        val audioUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.DURATION
+        )
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ALBUM_ID} = $albumId"
+        val musicList = mutableListOf<MusicTrack>()
+
+        context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                val title = cursor.getString(albumColumn)
+                val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)) ?: "Unknown Artist"
+                val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
+                val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
+                val uri = ContentUris.withAppendedId(audioUri, id).toString()
+
+                musicList.add(MusicTrack(id, title, artist, album, duration, uri))
+            }
+        }
+
+        return musicList
     }
 }
