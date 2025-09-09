@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,7 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.wwwjsw.musicserver.AudioDetailsBottomSheet
 import com.wwwjsw.musicserver.Album
-import com.wwwjsw.musicserver.models.MusicTrack
 
 class ListOfAlbums {
     @Composable
@@ -43,7 +43,8 @@ class ListOfAlbums {
                                     selectedDetails,
                                     album.id,
                                     localNetworkIp,
-                                    MusicTrack(0, "", "", "", 0, "")
+                                    null,
+                                    album
                                 )
                             }
                         }
@@ -51,7 +52,11 @@ class ListOfAlbums {
                         .fillMaxWidth()
                         .wrapContentHeight()
                     ) {
-                        Text(text = album.toString())
+                        Text(text = album.id.toString())
+                        HorizontalDivider()
+                        Text(text = album.album)
+                        HorizontalDivider()
+                        Text(text = album.musics.toString())
                     }
                 }
             }

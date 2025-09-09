@@ -19,17 +19,19 @@ class AudioDetailsBottomSheet {
     private var trackDetailsState by mutableStateOf("")
     private var trackID by mutableLongStateOf(0L)
     private var localAddress by mutableStateOf("")
-    private var actualMusic by mutableStateOf(MusicTrack(0, "", "", "", 0, ""))
+    private var actualMusic by mutableStateOf<MusicTrack?>(null)
+    private var actualAlbum by mutableStateOf<Album?>(null)
 
     /**
      * open bottom sheet with details.
      */
-    fun open(details: String, id: Long, localNetworkIp: String, music: MusicTrack) {
+    fun open(details: String, id: Long, localNetworkIp: String, music: MusicTrack? = null, album: Album? = null) {
         trackDetailsState = details
         trackID = id
         isVisible = true
         localAddress = localNetworkIp
         actualMusic = music
+        actualAlbum = album
     }
 
     /**
@@ -62,7 +64,7 @@ class AudioDetailsBottomSheet {
                             .padding(16.dp)
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        AudioPlayer(url = musicUrl, actualMusic = actualMusic)
+                        AudioPlayer(url = musicUrl, actualMusic = actualMusic, actualAlbum = actualAlbum)
                         Text(
                             text = "Close",
                             modifier = Modifier
@@ -98,7 +100,8 @@ fun PreviewAudioDetailsBottomSheet() {
                     "Details string",
                     75,
                     "localhost",
-                    MusicTrack(0, "", "", "", 0, "")
+                    MusicTrack(0, "", "", "", 0, ""),
+                    Album(0, "", emptyList())
                 )
             }) {
                 Text(text = "Open bottom sheet", modifier = Modifier.padding(32.dp).fillMaxWidth(), textAlign = TextAlign.Center)

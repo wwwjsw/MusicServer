@@ -2,6 +2,7 @@ package com.wwwjsw.musicserver
 
 import com.wwwjsw.musicserver.models.MusicTrack
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -34,7 +35,8 @@ class PlayerActivity : ComponentActivity() {
 fun AudioPlayer(
     url: String,
     modifier: Modifier = Modifier,
-    actualMusic: MusicTrack,
+    actualMusic: MusicTrack? = null,
+    actualAlbum: Album? = null
 ) {
     val context = LocalContext.current
 
@@ -42,6 +44,7 @@ fun AudioPlayer(
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
 
+    Log.d("AudioPlayer", actualAlbum.toString())
     // Optimized for audio handle
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
@@ -58,7 +61,7 @@ fun AudioPlayer(
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
                         if (state == Player.STATE_READY) {
-                            duration = actualMusic.duration!!
+                            duration = actualMusic?.duration ?: 0
                         }
                     }
 
@@ -76,11 +79,21 @@ fun AudioPlayer(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = actualMusic.title!!,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        actualMusic?.title?.let { actualMusicTitle  ->
+            Text(
+                text = actualMusicTitle,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        actualAlbum?.album?.let { actualAlbumTitle ->
+            Text(
+                text = actualAlbumTitle,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        // TODO review use of variables to alternate between playlist and player behavior
         Slider(
             value = currentPosition.toFloat(),
             onValueChange = {

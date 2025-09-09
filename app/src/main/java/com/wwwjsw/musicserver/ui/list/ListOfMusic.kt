@@ -46,7 +46,8 @@ class ListOfMusic {
                                     selectedDetails,
                                     music.id,
                                     localNetworkIp,
-                                    music
+                                    music,
+                                    null
                                 )
                             }
                         }
