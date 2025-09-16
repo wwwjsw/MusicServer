@@ -1,15 +1,13 @@
 package com.wwwjsw.musicserver
 
 import com.wwwjsw.musicserver.models.MusicTrack
-import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -18,18 +16,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.delay
-
-class PlayerActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            AudioPlayer(
-                url = "https://archive.org/download/01.CrucifyMeFeat.Lights/01.%20Crucify%20Me%20%28Feat.%20Lights%29.mp3",
-                actualMusic = MusicTrack(0, "", "", "", 0, "")
-            )
-        }
-    }
-}
 
 @Composable
 fun AudioPlayer(
@@ -45,6 +31,12 @@ fun AudioPlayer(
     var duration by remember { mutableStateOf(0L) }
 
     Log.d("AudioPlayer", actualAlbum.toString())
+    Log.d("AudioPlayer", actualMusic.toString())
+    Log.d("AudioPlayer", url)
+    Log.d("AudioPlayer", isPlaying.toString())
+    Log.d("AudioPlayer", currentPosition.toString())
+    Log.d("AudioPlayer", duration.toString())
+
     // Optimized for audio handle
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
@@ -114,6 +106,14 @@ fun AudioPlayer(
             modifier = Modifier.padding(top = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            IconButton(onClick = { /*TODO*/ }) {
+                val prevIcon =  painterResource(id = R.drawable.baseline_skip_next_24)
+                Icon(
+                    prevIcon,
+                    contentDescription = "Previous music",
+                    modifier = Modifier.rotate(180f)
+                )
+            }
             IconButton(onClick = { exoPlayer.seekTo(maxOf(0, currentPosition - 10000)) }) {
                 val replayIcon = painterResource(id = R.drawable.twotone_replay_10_24)
                 Icon(
@@ -133,10 +133,18 @@ fun AudioPlayer(
                     contentDescription = if (isPlaying) "Pause" else "Play"
                 )
             }
+            // TODO: reuse prev icon but with rotation!
             IconButton(onClick = { exoPlayer.seekTo(minOf(duration, currentPosition + 10000)) }) {
                 val forwardIcon = painterResource(id = R.drawable.twotone_forward_10_24)
 
                 Icon(forwardIcon, contentDescription = "Forward 10 seconds")
+            }
+            IconButton(onClick = { /*TODO*/ }) {
+                val prevIcon =  painterResource(id = R.drawable.baseline_skip_next_24)
+                Icon(
+                    prevIcon,
+                    contentDescription = "Previous music"
+                )
             }
         }
     }

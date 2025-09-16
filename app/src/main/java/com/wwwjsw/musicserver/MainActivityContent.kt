@@ -130,7 +130,7 @@ fun MainActivityContent(
                             )
                         }
                         if (selectionFilter == FilterType.ALBUMS) {
-                            Text(text = albumsList.value.toString())
+                            Log.d("com.wwwjsw.musicserver", "Albums list: ${albumsList.value}")
                             ListOfAlbums().Render(
                                 albumList = albumsList.value,
                                 localNetworkIp = localNetworkIp,

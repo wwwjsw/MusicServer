@@ -64,7 +64,11 @@ class AudioDetailsBottomSheet {
                             .padding(16.dp)
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        AudioPlayer(url = musicUrl, actualMusic = actualMusic, actualAlbum = actualAlbum)
+                        AudioPlayer(
+                            url = musicUrl,
+                            actualMusic = actualMusic,
+                            actualAlbum = actualAlbum
+                        )
                         Text(
                             text = "Close",
                             modifier = Modifier
