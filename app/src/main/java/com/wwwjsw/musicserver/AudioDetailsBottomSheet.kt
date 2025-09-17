@@ -17,15 +17,12 @@ class AudioDetailsBottomSheet {
 
     private var isVisible by mutableStateOf(false)
     private var trackDetailsState by mutableStateOf("")
-    private var trackID by mutableLongStateOf(0L)
+    private var trackID by mutableStateOf<Long?>(0L)
     private var localAddress by mutableStateOf("")
     private var actualMusic by mutableStateOf<MusicTrack?>(null)
     private var actualAlbum by mutableStateOf<Album?>(null)
 
-    /**
-     * open bottom sheet with details.
-     */
-    fun open(details: String, id: Long, localNetworkIp: String, music: MusicTrack? = null, album: Album? = null) {
+    fun open(details: String, id: Long? = null, localNetworkIp: String, music: MusicTrack? = null, album: Album? = null) {
         trackDetailsState = details
         trackID = id
         isVisible = true
@@ -48,6 +45,7 @@ class AudioDetailsBottomSheet {
     fun Content(content: @Composable () -> Unit) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val coroutineScope = rememberCoroutineScope()
+        // TODO we need more eficient way to  do that!
         val musicUrl = "http://${localAddress}:8080/music?audio_id=${trackID}"
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -65,7 +63,7 @@ class AudioDetailsBottomSheet {
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
                         AudioPlayer(
-                            url = musicUrl,
+                            url = musicUrl.takeIf { trackID != null },
                             actualMusic = actualMusic,
                             actualAlbum = actualAlbum
                         )

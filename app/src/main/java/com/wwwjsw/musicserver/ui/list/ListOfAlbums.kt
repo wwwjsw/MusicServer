@@ -45,7 +45,7 @@ class ListOfAlbums {
                             if (localNetworkIp != null) {
                                 audioDetailsBottomSheet.open(
                                     selectedDetails,
-                                    album.id,
+                                    null,
                                     localNetworkIp,
                                     null,
                                     album
