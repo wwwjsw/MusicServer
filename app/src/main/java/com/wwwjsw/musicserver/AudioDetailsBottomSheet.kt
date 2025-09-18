@@ -89,27 +89,3 @@ class AudioDetailsBottomSheet {
         }
     }
 }
-
-@Preview (showBackground = true)
-@Composable
-fun PreviewAudioDetailsBottomSheet() {
-    val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
-
-    audioDetailsBottomSheet.Content {
-        Column {
-            Button(onClick = {
-                audioDetailsBottomSheet.open(
-                    "Details string",
-                    75,
-                    "localhost",
-                    MusicTrack(0, "", "", "", 0, ""),
-                    Album(0, "", emptyList())
-                )
-            }) {
-                Text(text = "Open bottom sheet", modifier = Modifier.padding(32.dp).fillMaxWidth(), textAlign = TextAlign.Center)
-            }
-            Text(text = "Content of the bottom sheet", modifier = Modifier.padding(32.dp).fillMaxWidth(), textAlign = TextAlign.Center)
-        }
-    }
-
-}
