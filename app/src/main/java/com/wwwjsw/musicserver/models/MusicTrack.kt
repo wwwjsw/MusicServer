@@ -1,4 +1,5 @@
 package com.wwwjsw.musicserver.models
+import android.graphics.Bitmap
 
 data class MusicTrack(
     val id: Long,
@@ -6,5 +7,6 @@ data class MusicTrack(
     val artist: String?,
     val album: String?,
     val duration: Long?,
-    val uri: String
+    val uri: String,
+    val thumbnail: Bitmap? = null,
 )

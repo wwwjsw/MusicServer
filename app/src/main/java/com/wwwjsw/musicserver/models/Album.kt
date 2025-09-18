@@ -1,7 +1,6 @@
-package com.wwwjsw.musicserver
+package com.wwwjsw.musicserver.models
 
 import android.graphics.Bitmap
-import com.wwwjsw.musicserver.models.MusicTrack
 
 data  class Album(
     val id: Long,
