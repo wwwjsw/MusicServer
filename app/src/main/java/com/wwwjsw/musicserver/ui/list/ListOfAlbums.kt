@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,7 +70,7 @@ class ListOfAlbums {
                             }
                         }
                         Column (modifier = Modifier.align(Alignment.CenterVertically).padding(16.dp)) {
-                            Text(text = album.album)
+                            Text(text = album.album, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
