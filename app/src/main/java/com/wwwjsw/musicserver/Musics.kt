@@ -5,6 +5,12 @@ import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
 import android.util.Log
+import android.graphics.Bitmap
+import android.util.Size
+import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import com.wwwjsw.musicserver.models.Album
 
 object Musics {
     fun getMusicPaths(context: Context): List<String> {
@@ -42,8 +48,8 @@ object Musics {
                         val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
                         val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
                         val uri = ContentUris.withAppendedId(audioUri, id).toString()
-
-                        add(MusicTrack(id, title, artist, album, duration, uri))
+                        val thumbnail = loadMusicArtThumbnail(context, id)
+                        add(MusicTrack(id, title, artist, album, duration, uri, thumbnail))
                     }
                 }
             } ?: emptyList()
@@ -57,21 +63,52 @@ object Musics {
         val albumUri = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Albums._ID,
-            MediaStore.Audio.Albums.ALBUM
+            MediaStore.Audio.Albums.ALBUM,
+            MediaStore.Audio.Albums.ARTIST,
+            MediaStore.Audio.Albums.NUMBER_OF_SONGS
         )
         val albumList = mutableListOf<Album>()
 
         context.contentResolver.query(albumUri, projection, null, null, null)?.use { cursor ->
-            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM)
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID)
+            val albumNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM)
+
             while (cursor.moveToNext()) {
-                val  id  = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID))
-                val album = cursor.getString(albumColumn)
+                val id = cursor.getLong(idColumn)
+                val albumName = cursor.getString(albumNameColumn)
                 val musics = getMusics(context, id)
-                albumList.add(Album(id, album, musics))
+
+                val albumArt = loadAlbumArtThumbnail(context, id)
+
+                albumList.add(Album(id, albumName, musics, albumArt))
             }
         }
 
         return albumList
+    }
+
+    private fun getBitmapFromDrawable(context: Context, @DrawableRes drawableId: Int): Bitmap? {
+        return ContextCompat.getDrawable(context, drawableId)?.toBitmap()
+    }
+
+    private fun loadAlbumArtThumbnail(context: Context, albumId: Long): Bitmap? {
+        return try {
+            val uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
+            context.contentResolver.loadThumbnail(uri, Size(300, 300), null)
+        } catch (e: Exception) {
+            Log.e("AlbumLoader", "Failed to load thumbnail for album $albumId: ${e.message}")
+            getBitmapFromDrawable(context, R.drawable.cd)
+        }
+    }
+
+    private fun loadMusicArtThumbnail(context: Context, musicId: Long): Bitmap? {
+        return try {
+            val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, musicId)
+            context.contentResolver.loadThumbnail(uri, Size(300, 300), null)
+        } catch (e: Exception) {
+            Log.e("MusicLoader", "Failed to load thumbnail for music $musicId: ${e.message}")
+            getBitmapFromDrawable(context, R.drawable.cd)
+        }
     }
 
     fun getMusic(context: Context, id: Long): Result<MusicTrack?> {
@@ -101,6 +138,7 @@ object Musics {
                 }
             }
         } catch (e: Exception) {
+            Log.e("MusicServer", "Error fetching music track", e)
             null
         }
 

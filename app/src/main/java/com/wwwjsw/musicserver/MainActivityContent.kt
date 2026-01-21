@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.wwwjsw.musicserver.local.StaticLists.menuItems
+import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
 import com.wwwjsw.musicserver.ui.list.ListOfAlbums
@@ -130,7 +131,7 @@ fun MainActivityContent(
                             )
                         }
                         if (selectionFilter == FilterType.ALBUMS) {
-                            Text(text = albumsList.value.toString())
+                            Log.d("com.wwwjsw.musicserver", "Albums list: ${albumsList.value}")
                             ListOfAlbums().Render(
                                 albumList = albumsList.value,
                                 localNetworkIp = localNetworkIp,

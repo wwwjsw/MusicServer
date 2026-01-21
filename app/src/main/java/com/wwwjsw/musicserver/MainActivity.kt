@@ -16,6 +16,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme

@@ -1,4 +1,4 @@
-package com.wwwjsw.musicserver
+package com.wwwjsw.musicserver.helpers
 
 import java.util.Locale
 
