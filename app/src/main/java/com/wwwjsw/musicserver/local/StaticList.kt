@@ -9,15 +9,15 @@ object StaticLists {
     val menuItems = listOf(
         MenuItem(
             1,
-            "All Songs",
-            imageVector = R.drawable.twotone_play_circle_24,
-            FilterType.ALL
-        ),
-        MenuItem(
-            2,
             "Albums",
             imageVector =  R.drawable.baseline_theater_comedy_24,
             FilterType.ALBUMS
+        ),
+        MenuItem(
+            2,
+            "All Songs",
+            imageVector = R.drawable.twotone_play_circle_24,
+            FilterType.ALL
         )
     )
 }

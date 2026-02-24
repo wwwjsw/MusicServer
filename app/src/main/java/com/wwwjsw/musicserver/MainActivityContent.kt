@@ -47,7 +47,7 @@ fun MainActivityContent(
     context: Context,
 ) {
     // Replace regular variable with mutableState
-    var selectionFilter by remember { mutableStateOf(FilterType.ALL) }
+    var selectionFilter by remember { mutableStateOf(FilterType.ALBUMS) }
     val musicList = remember { musicListState }
     val albumsList = remember { albumsListState }
 
