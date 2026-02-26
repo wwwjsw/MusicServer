@@ -20,7 +20,10 @@ import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
-
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private lateinit var server: MediaServer
     private lateinit var selectionFilter: FilterType
@@ -30,7 +33,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startServer() {
         val musicPaths = Musics.getMusicPaths(this)
-        loadMusics()
+        loadMusicsCoroutine()
         selectionFilter = FilterType.ALL
         Log.d("com.wwwjsw.musicserver.MediaServer", "Music paths: $musicPaths")
         server = MediaServer(8080, this)
@@ -47,25 +50,27 @@ class MainActivity : ComponentActivity() {
 
             val allGranted = permissions.all { it.value }
             if (allGranted) {
-                loadMusics()
+                loadMusicsCoroutine()
             } else {
                 Log.w("com.wwwjsw.musicserver.MediaServer", "Not all permissions were granted.")
             }
         }
 
+    private fun loadMusicsCoroutine() {
+        // Use lifecycleScope to launch a coroutine
+        lifecycleScope.launch {
+            // withContext(Dispatchers.IO) move execution to a thread of input/output (data)
+            val (tracks, albums) = withContext(Dispatchers.IO) {
+                val t = Musics.getMusicTracks(this@MainActivity)
+                val a = Musics.getAlbums(this@MainActivity)
+                Pair(t, a)
+            }
 
-    private fun loadMusics() {
-        // Load music tracks
-        val tracks = Musics.getMusicTracks(this)
-        musicListState.value = tracks
-        Log.d("com.wwwjsw.musicserver.MediaServer", "Music tracks loaded: ${tracks.size}  $tracks")
-
-        // Load albums
-        val albums = Musics.getAlbums(this)
-        albumsListState.value = albums
-        Log.d("com.wwwjsw.musicserver.MediaServer", "Albums: $albums")
+            // Back to Main Thread, update the interface
+            musicListState.value = tracks
+            albumsListState.value = albums
+        }
     }
-
     override fun onStart() {
         super.onStart()
 
@@ -90,7 +95,7 @@ class MainActivity : ComponentActivity() {
                 "com.wwwjsw.musicserver.MediaServer",
                 "All permissions are already granted."
             )
-            loadMusics()
+            loadMusicsCoroutine()
         }
     }
 
