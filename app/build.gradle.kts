@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.wwwjsw.musicserver"
         minSdk = 30
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 6
         versionName = "1.3"
 
