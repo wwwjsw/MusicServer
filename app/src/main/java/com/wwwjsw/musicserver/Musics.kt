@@ -11,12 +11,13 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.wwwjsw.musicserver.models.Album
+import com.wwwjsw.musicserver.helpers.MusicFilter
 
 object Musics {
     fun getMusicPaths(context: Context): List<String> {
         val audioUri =  MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(MediaStore.Audio.Media._ID)
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val selection = MusicFilter.getSelection()
 
         return context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
             List(cursor.count) { index ->
@@ -36,7 +37,7 @@ object Musics {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION
         )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val selection = MusicFilter.getSelection()
 
         return try {
             context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
@@ -78,9 +79,10 @@ object Musics {
                 val albumName = cursor.getString(albumNameColumn)
                 val musics = getMusics(context, id)
 
-                val albumArt = loadAlbumArtThumbnail(context, id)
-
-                albumList.add(Album(id, albumName, musics, albumArt))
+                if (musics.isNotEmpty()) {
+                    val albumArt = loadAlbumArtThumbnail(context, id)
+                    albumList.add(Album(id, albumName, musics, albumArt))
+                }
             }
         }
 
@@ -120,7 +122,7 @@ object Musics {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION
         )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media._ID} = $id"
+        val selection = MusicFilter.getSelection("${MediaStore.Audio.Media._ID} = $id")
 
         val musicTrack: MusicTrack? = try {
             context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
@@ -160,7 +162,7 @@ object Musics {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION
         )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.ALBUM_ID} = $albumId"
+        val selection = MusicFilter.getSelection("${MediaStore.Audio.Media.ALBUM_ID} = $albumId")
         val musicList = mutableListOf<MusicTrack>()
 
         context.contentResolver.query(audioUri, projection, selection, null, null)?.use { cursor ->
