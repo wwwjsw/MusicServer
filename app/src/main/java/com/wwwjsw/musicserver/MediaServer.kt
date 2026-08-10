@@ -163,6 +163,17 @@ class MediaServer(port: Int, private val context: Context) {
                         call.respondText(Gson().toJson(response), ContentType.Application.Json)
                     }
                 }
+
+                get("/albuns") {
+                    val albums = Musics.getAlbums(serverContext)
+                    val response = mapOf(
+                        "status" to HttpStatusCode.OK,
+                        "ipAddress" to getLocalIpAddress(),
+                        "data" to albums
+                    )
+
+                    call.respondText(Gson().toJson(response), ContentType.Application.Json)
+                }
             }
         }
 
