@@ -39,7 +39,7 @@ object MusicScanner {
     // -----------------------------------------------------------------------
 
     fun getMusicTracks(root: File): List<MusicTrack> =
-        walk(root).mapIndexedNotNull { index, file -> readTrack(file, index.toLong()) }
+        walk(root).mapIndexedNotNull { index, file -> readTrack(file, index.toLong()) }.toList()
 
     fun getAlbums(root: File): List<Album> {
         val tracks = getMusicTracks(root)
