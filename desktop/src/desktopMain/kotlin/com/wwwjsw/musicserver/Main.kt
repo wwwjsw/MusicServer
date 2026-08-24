@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,8 +31,6 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ImageInfo
-import java.awt.FileDialog
-import java.awt.Frame
 import java.io.File
 
 private const val DEFAULT_PORT = 8080
@@ -59,6 +58,7 @@ fun MusicServerApp() {
     var tracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var isScanning by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("Ready") }
+    var showPicker by remember { mutableStateOf(false) }
 
     val serverUrl = ipAddress?.let { "http://$it:$port" }
     val qrBitmap = remember(serverUrl) { serverUrl?.let { generateQr(it) } }
@@ -66,7 +66,8 @@ fun MusicServerApp() {
     fun startServer() {
         val portInt = port.toIntOrNull() ?: DEFAULT_PORT
         val root = musicRoot ?: return
-        val srv = DesktopMediaServer(port = portInt, musicRoot = root)
+        val frontendZip = extractFrontendZip()
+        val srv = DesktopMediaServer(port = portInt, musicRoot = root, frontendZip = frontendZip)
         srv.start()
         server = srv
         isRunning = true
@@ -91,6 +92,16 @@ fun MusicServerApp() {
         statusMessage = "Server stopped"
     }
 
+    if (showPicker) {
+        DirectoryPickerDialog(
+            onDismiss = { showPicker = false },
+            onConfirm = { dir ->
+                musicRoot = dir
+                showPicker = false
+            },
+        )
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -109,10 +120,7 @@ fun MusicServerApp() {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Music folder", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedButton(
-                        onClick = {
-                            val chosen = pickDirectory()
-                            if (chosen != null) musicRoot = chosen
-                        },
+                        onClick = { showPicker = true },
                         enabled = !isRunning,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -161,7 +169,7 @@ fun MusicServerApp() {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         InfoRow(label = "Local IP", value = ipAddress ?: "unknown")
                         InfoRow(label = "Port", value = port)
-                        InfoRow(label = "URL", value = serverUrl)
+                        InfoRow(label = "Player", value = "$serverUrl/")
                         InfoRow(label = "Tracks API", value = "$serverUrl/music")
                         InfoRow(label = "Albums API", value = "$serverUrl/albuns")
                     }
@@ -176,7 +184,7 @@ fun MusicServerApp() {
                                     .background(Color.White, RoundedCornerShape(8.dp))
                                     .padding(8.dp),
                             )
-                            Text("Scan to connect", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Scan to open player", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -262,7 +270,73 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
-// Utilities
+/**
+ * Compose-native directory picker — works on any Linux WM/DE,
+ * starts at "/" so /mnt, /media, and external drives are reachable.
+ */
+@Composable
+fun DirectoryPickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (File) -> Unit,
+) {
+    var currentDir by remember { mutableStateOf(File("/")) }
+    val entries = remember(currentDir) {
+        currentDir.listFiles()
+            ?.filter { it.isDirectory && !it.name.startsWith(".") }
+            ?.sortedWith(compareBy({ !it.canRead() }, { it.name.lowercase() }))
+            ?: emptyList()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                currentDir.absolutePath,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column {
+                if (currentDir.parentFile != null) {
+                    TextButton(onClick = { currentDir = currentDir.parentFile!! }) {
+                        Text("⬆  ..")
+                    }
+                }
+                HorizontalDivider()
+                LazyColumn(modifier = Modifier.height(320.dp)) {
+                    items(entries) { dir ->
+                        TextButton(
+                            onClick = { currentDir = dir },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                "📁  ${dir.name}",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Start,
+                                color = if (dir.canRead())
+                                    MaterialTheme.colorScheme.onSurface
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(currentDir) }) {
+                Text("Select \"${currentDir.name.ifEmpty { "/" }}\"")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
 
 private fun formatDuration(ms: Long): String {
     val total = ms / 1_000
@@ -273,22 +347,22 @@ private fun formatDuration(ms: Long): String {
 
 private fun defaultMusicDir(): File? {
     val home = System.getProperty("user.home") ?: return null
-    return listOf("Music", "music", "Música", "Musica")
-        .map { File(home, it) }
-        .firstOrNull { it.isDirectory }
+    val homeCandidates = listOf("Music", "music", "Música", "Musica").map { File(home, it) }
+    val mntCandidates = File("/mnt").listFiles()?.filter { it.isDirectory }.orEmpty()
+    return (homeCandidates + mntCandidates).firstOrNull { it.isDirectory }
         ?: File(home).takeIf { it.isDirectory }
 }
 
-private fun pickDirectory(): File? {
-    val dialog = FileDialog(Frame(), "Select music folder", FileDialog.LOAD).apply {
-        System.setProperty("apple.awt.fileDialogForDirectories", "true")
-        isMultipleMode = false
-        isVisible = true
-    }
-    val dir = dialog.directory ?: return null
-    val file = dialog.file ?: return null
-    return File(dir, file).let { if (it.isDirectory) it else it.parentFile }
-}
+/**
+ * Extracts music.zip from the JAR resources to a temp file so
+ * [DesktopMediaServer] can open it as a [java.util.zip.ZipFile].
+ */
+private fun extractFrontendZip(): File? = try {
+    val stream = object {}.javaClass.getResourceAsStream("/music.zip") ?: return null
+    val tmp = File.createTempFile("music_frontend", ".zip").also { it.deleteOnExit() }
+    tmp.outputStream().use { out -> stream.copyTo(out) }
+    tmp
+} catch (_: Exception) { null }
 
 /**
  * Generates a ZXing QR code and converts it to a Compose [ImageBitmap] via Skia.
