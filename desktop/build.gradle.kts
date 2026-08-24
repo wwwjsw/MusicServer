@@ -8,7 +8,7 @@ kotlin {
     jvm("desktop")
 
     sourceSets {
-        val jvmMain by getting {
+        val desktopMain by getting {
             dependencies {
                 // Compose Desktop
                 implementation(compose.desktop.currentOs)
