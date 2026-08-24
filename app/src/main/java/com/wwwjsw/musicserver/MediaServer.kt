@@ -27,12 +27,12 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.util.zip.ZipFile
 
-class MediaServer(port: Int, private val context: Context) {
-    private var server: NettyApplicationEngine? = null
+class MediaServer(private val port: Int, private val context: Context) {
+    private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
     private var serverContext: Context = context
 
     fun start() {
-        server = embeddedServer(Netty, port = 8080) {
+        server = embeddedServer(Netty, port = port) {
             install(CORS) {
                 anyHost()
                 allowMethod(HttpMethod.Get)
@@ -162,6 +162,17 @@ class MediaServer(port: Int, private val context: Context) {
                         )
                         call.respondText(Gson().toJson(response), ContentType.Application.Json)
                     }
+                }
+
+                get("/albuns") {
+                    val albums = Musics.getAlbums(serverContext)
+                    val response = mapOf(
+                        "status" to HttpStatusCode.OK,
+                        "ipAddress" to getLocalIpAddress(),
+                        "data" to albums
+                    )
+
+                    call.respondText(Gson().toJson(response), ContentType.Application.Json)
                 }
             }
         }
