@@ -1,5 +1,6 @@
 package com.wwwjsw.musicserver.server
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.wwwjsw.musicserver.models.MusicTrack
 import io.ktor.http.*
@@ -9,55 +10,52 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.BufferedInputStream
 import java.io.File
+import java.io.RandomAccessFile
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.zip.ZipFile
 
-/**
- * Desktop (Linux/JVM) equivalent of the Android [MediaServer].
- *
- * Exposes the same HTTP endpoints so the web front-end (served from the bundled
- * music.zip) works identically on both platforms:
- *
- *  GET /              → index.html from music.zip
- *  GET /js/app.js     → app.js from music.zip
- *  GET /music         → JSON list of all tracks  (no query param)
- *  GET /music?audio_id=<id> → stream audio file with HTTP Range support
- *  GET /albuns        → JSON list of albums (typo kept for API compatibility)
- *
- * Music is discovered by [MusicScanner] walking [musicRoot] on the filesystem.
- */
 class DesktopMediaServer(
     private val port: Int,
     private val musicRoot: File,
     private val frontendZip: File? = null,
 ) {
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
-    private val json = jacksonObjectMapper()
 
-    // -----------------------------------------------------------------------
-    //  Lifecycle
-    // -----------------------------------------------------------------------
+    // Reuse mapper; NON_NULL so thumbnail is omitted when null (keeps /music JSON small)
+    private val json = jacksonObjectMapper().apply {
+        setSerializationInclusion(JsonInclude.Include.NON_NULL)
+    }
+
+    // Pre-read frontend assets once at startup so every HTTP request is served from memory
+    private val indexHtml: ByteArray? by lazy { frontendZip?.readEntry("index.html") }
+    private val appJs:     ByteArray? by lazy { frontendZip?.readEntry("js/app.js") }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     fun start() {
-        server = embeddedServer(Netty, port = port) {
+        // Warm the scanner cache on a background thread so the UI is responsive
+        // and the first /music request is answered instantly
+        CoroutineScope(Dispatchers.IO).launch { MusicScanner.getMusicTracks(musicRoot) }
+
+        server = embeddedServer(Netty, port = port, configure = {
+            // Netty worker threads = CPUs; connection backlog default is fine
+            workerGroupSize = Runtime.getRuntime().availableProcessors()
+        }) {
             installCors()
             configureRouting()
         }
-        CoroutineScope(Dispatchers.IO).launch {
-            server?.start(wait = true)
-        }
+        CoroutineScope(Dispatchers.IO).launch { server?.start(wait = true) }
     }
 
     fun stop() {
-        server?.stop(1_000, 2_000)
+        server?.stop(500, 1_000)
         server = null
+        MusicScanner.invalidate()
     }
 
     fun getLocalIpAddress(): String? = try {
@@ -68,9 +66,7 @@ class DesktopMediaServer(
             ?.hostAddress
     } catch (_: Exception) { null }
 
-    // -----------------------------------------------------------------------
-    //  Ktor configuration
-    // -----------------------------------------------------------------------
+    // ── Ktor ─────────────────────────────────────────────────────────────────
 
     private fun Application.installCors() {
         install(CORS) {
@@ -82,130 +78,162 @@ class DesktopMediaServer(
             exposeHeader(HttpHeaders.ContentRange)
             exposeHeader(HttpHeaders.AcceptRanges)
             exposeHeader(HttpHeaders.ContentLength)
-            exposeHeader(HttpHeaders.ContentType)
         }
     }
 
     private fun Application.configureRouting() {
-        // Open the bundled zip once and reuse it (or null if no zip provided)
-        val zip: ZipFile? = frontendZip?.let { ZipFile(it) }
-
         routing {
-            // Preflight
             options("/{...}") { call.respond(HttpStatusCode.OK) }
 
-            // ── Frontend ─────────────────────────────────────────────────────
+            // ── Frontend ──────────────────────────────────────────────────────
             get("/") {
-                if (zip != null) {
-                    call.respondBytes(
-                        bytes = zip.getInputStream(zip.getEntry("index.html")).use { it.readBytes() },
-                        contentType = ContentType.Text.Html,
-                    )
+                if (indexHtml != null) {
+                    call.respondBytes(indexHtml!!, ContentType.Text.Html)
                 } else {
-                    call.respondText("Music Server is running on Linux (no frontend bundled)")
+                    call.respondText("Music Server running — no frontend bundled")
                 }
             }
 
             get("/js/app.js") {
-                if (zip != null) {
-                    call.respondBytes(
-                        bytes = zip.getInputStream(zip.getEntry("js/app.js")).use { it.readBytes() },
-                        contentType = ContentType.Application.JavaScript,
-                    )
+                if (appJs != null) {
+                    call.respondBytes(appJs!!, ContentType.Application.JavaScript)
                 } else {
-                    call.respond(HttpStatusCode.NotFound, "No frontend bundled")
+                    call.respond(HttpStatusCode.NotFound)
                 }
             }
 
-            // ── Music list / stream ───────────────────────────────────────────
+            // ── Track list ────────────────────────────────────────────────────
             get("/music") {
-                val audioIdString = call.request.queryParameters["audio_id"]
+                val audioIdStr = call.request.queryParameters["audio_id"]
 
-                if (!audioIdString.isNullOrEmpty()) {
-                    // ── Stream a single track ─────────────────────────────────
-                    val audioId = audioIdString.toLongOrNull()
-                    if (audioId == null) {
-                        call.respond(HttpStatusCode.BadRequest, "Invalid audio ID")
-                        return@get
-                    }
-
-                    val track: MusicTrack? = MusicScanner.getTrack(musicRoot, audioId)
-                    val file: File? = track?.file
-
-                    if (file == null || !file.exists()) {
-                        call.respond(HttpStatusCode.NotFound, "Audio file not found")
-                        return@get
-                    }
-
-                    val fileSize = file.length()
-                    val rangeHeader = call.request.headers[HttpHeaders.Range]
-
-                    call.response.header(HttpHeaders.AcceptRanges, "bytes")
-                    call.response.header(HttpHeaders.ContentType, "audio/mpeg")
-                    track.title.let { call.response.header("icy-name", it) }
-                    track.artist.let { call.response.header("icy-artist", it) }
-
-                    if (rangeHeader != null) {
-                        val match = Regex("""bytes=(\d*)-(\d*)""").find(rangeHeader)
-                        if (match == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Invalid range format")
-                            return@get
-                        }
-                        val (startStr, endStr) = match.destructured
-                        val start = if (startStr.isEmpty()) 0L else startStr.toLong()
-                        val end = if (endStr.isEmpty()) fileSize - 1 else endStr.toLong().coerceAtMost(fileSize - 1)
-
-                        if (start > end || start >= fileSize) {
-                            call.response.header(HttpHeaders.ContentRange, "bytes */$fileSize")
-                            call.respond(HttpStatusCode.RequestedRangeNotSatisfiable, "Requested range not satisfiable")
-                            return@get
-                        }
-
-                        val length = end - start + 1
-                        call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/$fileSize")
-                        call.respondBytesWriter(
-                            status = HttpStatusCode.PartialContent,
-                            contentType = ContentType.Audio.MPEG,
-                            contentLength = length,
-                        ) {
-                            file.inputStream().use { fis ->
-                                fis.skip(start)
-                                BufferedInputStream(fis, minOf(length, 65_536L).toInt())
-                                    .copyTo(this.toOutputStream())
-                            }
-                        }
-                    } else {
-                        call.respondBytesWriter(
-                            status = HttpStatusCode.OK,
-                            contentType = ContentType.Audio.MPEG,
-                            contentLength = fileSize,
-                        ) {
-                            file.inputStream().use { it.copyTo(this.toOutputStream()) }
-                        }
-                    }
-                } else {
-                    // ── Return full track list ────────────────────────────────
+                if (audioIdStr.isNullOrEmpty()) {
+                    // Full list — served from cache, no disk I/O
                     val tracks = MusicScanner.getMusicTracks(musicRoot)
-                    val response = mapOf(
-                        "status" to HttpStatusCode.OK.value,
-                        "ipAddress" to getLocalIpAddress(),
-                        "data" to tracks,
+                    call.respondText(
+                        json.writeValueAsString(mapOf(
+                            "status"    to 200,
+                            "ipAddress" to getLocalIpAddress(),
+                            "data"      to tracks,
+                        )),
+                        ContentType.Application.Json,
                     )
-                    call.respondText(json.writeValueAsString(response), ContentType.Application.Json)
+                    return@get
                 }
+
+                // ── Stream single track ───────────────────────────────────────
+                val id = audioIdStr.toLongOrNull()
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid audio ID")
+
+                val track: MusicTrack = MusicScanner.getTrack(musicRoot, id)
+                    ?: return@get call.respond(HttpStatusCode.NotFound, "Track not found")
+
+                val file: File = track.file
+                    ?: return@get call.respond(HttpStatusCode.NotFound, "File missing")
+
+                if (!file.exists())
+                    return@get call.respond(HttpStatusCode.NotFound, "File deleted")
+
+                streamAudio(file, track)
             }
 
             // ── Albums ────────────────────────────────────────────────────────
-            // Endpoint name kept as "/albuns" (typo in original) for API compat
             get("/albuns") {
                 val albums = MusicScanner.getAlbums(musicRoot)
-                val response = mapOf(
-                    "status" to HttpStatusCode.OK.value,
-                    "ipAddress" to getLocalIpAddress(),
-                    "data" to albums,
+                call.respondText(
+                    json.writeValueAsString(mapOf(
+                        "status"    to 200,
+                        "ipAddress" to getLocalIpAddress(),
+                        "data"      to albums,
+                    )),
+                    ContentType.Application.Json,
                 )
-                call.respondText(json.writeValueAsString(response), ContentType.Application.Json)
             }
         }
     }
+
+    // ── Audio streaming with Range support ────────────────────────────────────
+    // Uses RandomAccessFile for zero-copy seek — no need to skip bytes
+    // from the start of the stream for every partial request.
+
+    private suspend fun RoutingContext.streamAudio(file: File, track: MusicTrack) {
+        val fileSize = file.length()
+        val mimeType = mimeTypeFor(file)
+
+        call.response.header(HttpHeaders.AcceptRanges, "bytes")
+        call.response.header("icy-name",   track.title)
+        call.response.header("icy-artist", track.artist)
+
+        val rangeHeader = call.request.headers[HttpHeaders.Range]
+
+        if (rangeHeader == null) {
+            // Full file
+            call.response.header(HttpHeaders.ContentLength, fileSize.toString())
+            call.respondOutputStream(ContentType.parse(mimeType), HttpStatusCode.OK) {
+                file.inputStream().buffered(BUFFER_SIZE).use { it.copyTo(this) }
+            }
+            return
+        }
+
+        // Parse "bytes=start-end"
+        val match = RANGE_RE.find(rangeHeader)
+        if (match == null) {
+            call.respond(HttpStatusCode.BadRequest, "Malformed Range header")
+            return
+        }
+        val (startStr, endStr) = match.destructured
+        val start = if (startStr.isEmpty()) 0L else startStr.toLong()
+        val end   = if (endStr.isEmpty()) fileSize - 1 else endStr.toLong().coerceAtMost(fileSize - 1)
+
+        if (start > end || start >= fileSize) {
+            call.response.header(HttpHeaders.ContentRange, "bytes */$fileSize")
+            call.respond(HttpStatusCode.RequestedRangeNotSatisfiable)
+            return
+        }
+
+        val length = end - start + 1
+        call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/$fileSize")
+        call.response.header(HttpHeaders.ContentLength, length.toString())
+
+        call.respondOutputStream(ContentType.parse(mimeType), HttpStatusCode.PartialContent) {
+            RandomAccessFile(file, "r").use { raf ->
+                raf.seek(start)
+                val buf = ByteArray(BUFFER_SIZE)
+                var remaining = length
+                while (remaining > 0) {
+                    val toRead = minOf(buf.size.toLong(), remaining).toInt()
+                    val read = raf.read(buf, 0, toRead)
+                    if (read == -1) break
+                    write(buf, 0, read)
+                    remaining -= read
+                }
+            }
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private fun mimeTypeFor(file: File) = when (file.extension.lowercase()) {
+        "mp3"  -> "audio/mpeg"
+        "flac" -> "audio/flac"
+        "ogg"  -> "audio/ogg"
+        "opus" -> "audio/ogg"
+        "m4a"  -> "audio/mp4"
+        "aac"  -> "audio/aac"
+        "wav"  -> "audio/wav"
+        "wma"  -> "audio/x-ms-wma"
+        else   -> "audio/mpeg"
+    }
+
+    companion object {
+        private const val BUFFER_SIZE = 128 * 1024 // 128 KB
+        private val RANGE_RE = Regex("""bytes=(\d*)-(\d*)""")
+    }
 }
+
+// ── ZipFile extension ─────────────────────────────────────────────────────────
+
+private fun File.readEntry(entryPath: String): ByteArray? = try {
+    ZipFile(this).use { zip ->
+        zip.getInputStream(zip.getEntry(entryPath))?.use { it.readBytes() }
+    }
+} catch (_: Exception) { null }

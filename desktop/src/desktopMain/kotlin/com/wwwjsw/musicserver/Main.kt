@@ -66,6 +66,7 @@ fun MusicServerApp() {
     fun startServer() {
         val portInt = port.toIntOrNull() ?: DEFAULT_PORT
         val root = musicRoot ?: return
+        MusicScanner.invalidate()
         val frontendZip = extractFrontendZip()
         val srv = DesktopMediaServer(port = portInt, musicRoot = root, frontendZip = frontendZip)
         srv.start()
@@ -89,6 +90,7 @@ fun MusicServerApp() {
         server = null
         isRunning = false
         ipAddress = null
+        tracks = emptyList()
         statusMessage = "Server stopped"
     }
 
