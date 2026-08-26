@@ -42,10 +42,7 @@ class DesktopMediaServer(
         // and the first /music request is answered instantly
         CoroutineScope(Dispatchers.IO).launch { MusicScanner.getMusicTracks(musicRoot) }
 
-        server = embeddedServer(Netty, port = port, configure = {
-            // Netty worker threads = CPUs; connection backlog default is fine
-            workerGroupSize = Runtime.getRuntime().availableProcessors()
-        }) {
+        server = embeddedServer(Netty, port = port) {
             installCors()
             configureRouting()
         }
