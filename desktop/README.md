@@ -39,6 +39,16 @@ chmod +x gradlew
 ./gradlew :desktop:run
 ```
 
+## Web player
+
+Builds automatically bundle the **latest** web player released at
+<https://github.com/wwwjsw/musicclient/releases>. A `fetchWebPlayer` task runs
+before the resources are processed and, when a new release exists, updates
+`desktop/src/desktopMain/resources/music.zip` (and the Android copy). Run it
+manually with `./gradlew fetchWebPlayer`; pin a version with
+`-PwebPlayerVersion=<tag>` and authenticate against the GitHub API with
+`-PgithubToken=<token>` or the `GITHUB_TOKEN` env var.
+
 ## Building a distributable
 
 ```bash

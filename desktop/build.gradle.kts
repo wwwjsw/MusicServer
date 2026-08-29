@@ -58,3 +58,16 @@ compose.desktop {
         }
     }
 }
+
+// Always bundle the latest web player release before the resources are
+// processed and before running/packaging the app. KMP names the jvm resource
+// and run tasks after the target ("desktopProcessResources", "desktopRun").
+listOf(
+    "processResources", "desktopProcessResources",
+    "run", "desktopRun",
+    "packageDeb", "packageRpm", "packageAppImage",
+).forEach { name ->
+    tasks.matching { it.name == name }.configureEach {
+        dependsOn(rootProject.tasks.named("fetchWebPlayer"))
+    }
+}

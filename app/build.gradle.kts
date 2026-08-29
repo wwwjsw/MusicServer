@@ -50,6 +50,11 @@ android {
     }
 }
 
+// Always bundle the latest web player release before resources are processed.
+tasks.named("preBuild") {
+    dependsOn(rootProject.tasks.named("fetchWebPlayer"))
+}
+
 dependencies {
     implementation(libs.gson)
 
