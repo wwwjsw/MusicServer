@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import androidx.media3.session.MediaController
 import com.wwwjsw.musicserver.AudioDetailsBottomSheet
 import com.wwwjsw.musicserver.models.Album
 
@@ -32,14 +33,15 @@ class ListOfAlbums {
     fun Render(
         albumList: List<Album> = emptyList(),
         colors: ColorScheme,
-        localNetworkIp: String?
+        localNetworkIp: String?,
+        controller: MediaController?,
     ) {
         val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
         var selectedDetails by remember { mutableStateOf("") }
 
         Log.i("com.wwwjsw.musicserver", "Album tracks: ${albumList.toString()}  $localNetworkIp")
 
-        audioDetailsBottomSheet.Content {
+        audioDetailsBottomSheet.Content(controller = controller) {
             LazyColumn (modifier = Modifier.fillMaxWidth().padding(16.dp)){
                 items(albumList) { album ->
                     Row (modifier = Modifier
@@ -47,11 +49,8 @@ class ListOfAlbums {
                             selectedDetails = "TODO: Remove this data"
                             if (localNetworkIp != null) {
                                 audioDetailsBottomSheet.open(
-                                    selectedDetails,
-                                    null,
-                                    localNetworkIp,
-                                    null,
-                                    album
+                                    localNetworkIp = localNetworkIp,
+                                    album = album,
                                 )
                             }
                         }
@@ -76,7 +75,7 @@ class ListOfAlbums {
                 }
             }
         }
-//        audioDetailsBottomSheet.Content {
+//        audioDetailsBottomSheet.Content(controller = controller) {
 //            LazyColumn {
 //                Text(text = albumList.toString())
 //            }

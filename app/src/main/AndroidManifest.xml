@@ -1,17 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Network -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"  />
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Storage / audio read -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!-- Keep CPU on while streaming -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Foreground service (media playback) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Notification controls (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="audio/*" />
         </intent>
     </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -23,6 +38,7 @@
         android:theme="@style/Theme.MusicServer"
         tools:targetApi="31"
         android:usesCleartextTraffic="true">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,6 +48,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            MusicPlayerService: MediaSessionService that owns the ExoPlayer.
+            - Keeps audio alive when the UI is closed
+            - Publishes MediaSession → lock screen controls automatically
+            - media3 auto-creates the playback notification with prev/play/next
+        -->
+        <service
+            android:name=".MusicPlayerService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback"
+            tools:targetApi="29">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

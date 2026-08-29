@@ -2,311 +2,212 @@ package com.wwwjsw.musicserver
 
 import android.net.Uri
 import android.util.Log
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
 import com.wwwjsw.musicserver.helpers.formatTime
 import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.MusicTrack
 import kotlinx.coroutines.delay
 
+/**
+ * Player UI that drives [MusicPlayerService] through a [MediaController].
+ *
+ * The controller (and the ExoPlayer inside the service) stay alive when the
+ * BottomSheet is dismissed — audio never stops unless the user explicitly pauses
+ * or the service is destroyed.
+ */
 @Composable
 fun AudioPlayer(
     modifier: Modifier = Modifier,
+    controller: MediaController?,
     url: String? = null,
     actualMusic: MusicTrack? = null,
-    actualAlbum: Album? = null
+    actualAlbum: Album? = null,
 ) {
-    val context = LocalContext.current
-
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentPosition by remember { mutableStateOf(0L) }
-    var duration by remember { mutableStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(controller?.isPlaying == true) }
+    var currentPosition by remember { mutableStateOf(controller?.currentPosition ?: 0L) }
+    var duration by remember { mutableStateOf(controller?.duration?.coerceAtLeast(0L) ?: 0L) }
+    var currentMediaIndex by remember { mutableStateOf(controller?.currentMediaItemIndex ?: 0) }
     var playbackError by remember { mutableStateOf<String?>(null) }
 
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context)
-            .build()
-            .apply {
-                setHandleAudioBecomingNoisy(true)
-                setWakeMode(C.WAKE_MODE_NETWORK)
-
-                addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(state: Int) {
-                        Log.d("AudioPlayer", url.toString())
-                        if (state == Player.STATE_READY) {
-                            duration = this@apply.duration.coerceAtLeast(0L)
-                        }
-                    }
-
-                    override fun onIsPlayingChanged(playing: Boolean) {
-                        isPlaying = playing
-                    }
-
-                    override fun onPlayerError(error: PlaybackException) {
-                        playbackError = "Playback error: ${error.message}"
-                        Log.d("AudioPlayer", actualAlbum.toString())
-                        Log.e("AudioPlayer", "Playback error", error)
-                    }
-                })
+    // Attach listener to the controller (re-attached whenever controller changes)
+    DisposableEffect(controller) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY) {
+                    duration = controller?.duration?.coerceAtLeast(0L) ?: 0L
+                }
             }
+            override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
+                currentMediaIndex = controller?.currentMediaItemIndex ?: 0
+                duration = controller?.duration?.coerceAtLeast(0L) ?: 0L
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = error.message
+                Log.e("AudioPlayer", "Playback error", error)
+            }
+        }
+        controller?.addListener(listener)
+        onDispose { controller?.removeListener(listener) }
+        // NOTE: we intentionally do NOT release the controller here.
+        // Lifecycle belongs to MusicPlayerConnection / MusicPlayerService.
     }
 
-    LaunchedEffect(url) {
-        if (url?.isNotEmpty() == true) {
-            try {
-                val mediaItem = MediaItem.fromUri(url)
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.prepare()
-            } catch (e: Exception) {
-                playbackError = "Invalid URL: $url"
-                Log.e("AudioPlayer", "URL error", e)
+    // Load media into the service player when the composable first appears
+    // (or when the target track/album changes). Skip if already playing same item.
+    LaunchedEffect(url, actualAlbum) {
+        val ctrl = controller ?: return@LaunchedEffect
+        if (url != null) {
+            val item = buildMediaItem(url, actualMusic)
+            if (ctrl.currentMediaItem?.localConfiguration?.uri?.toString() != url) {
+                ctrl.setMediaItem(item)
+                ctrl.prepare()
+                ctrl.play()
+            }
+        } else if (actualAlbum != null) {
+            val items = actualAlbum.musics.mapNotNull { music ->
+                try { buildMediaItem(music.uri, music) }
+                catch (e: Exception) { Log.e("AudioPlayer", "Bad URI ${music.uri}", e); null }
+            }
+            if (items.isNotEmpty()) {
+                ctrl.setMediaItems(items)
+                ctrl.prepare()
+                ctrl.play()
             }
         }
     }
 
-    LaunchedEffect(actualAlbum) {
-        if (url === null && actualAlbum != null) {
-            Log.d("AudioPlayer", "Loading album: ${actualAlbum.album}")
-
-            val mediaItems = actualAlbum.musics.mapNotNull { music ->
-                try {
-                    createMediaItemFromUri(music.uri, music)
-                } catch (e: Exception) {
-                    Log.e("AudioPlayer", "Invalid music URI: ${music.uri}", e)
-                    null
-                }
-            }
-
-            if (mediaItems.isNotEmpty()) {
-                exoPlayer.setMediaItems(mediaItems)
-                exoPlayer.prepare()
-                Log.d("AudioPlayer", "Loaded ${mediaItems.size} tracks")
-            } else {
-                playbackError = "No valid tracks found in album"
-            }
+    // Poll position every second (lightweight; controller already on main thread)
+    LaunchedEffect(controller) {
+        while (true) {
+            currentPosition = controller?.currentPosition ?: 0L
+            currentMediaIndex = controller?.currentMediaItemIndex ?: 0
+            delay(1_000)
         }
     }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier.fillMaxWidth().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        playbackError?.let { error ->
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+        playbackError?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
         }
 
-        actualMusic?.title?.let { actualMusicTitle  ->
-            Text(
-                text = actualMusicTitle,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+        actualMusic?.title?.let {
+            Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
         }
-
-        actualAlbum?.album?.let { actualAlbumTitle ->
-            Text(
-                text = actualAlbumTitle,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+        actualAlbum?.album?.let {
+            Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
         }
 
         if (actualAlbum != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
             PlaylistTracks(
                 album = actualAlbum,
-                currentTrackIndex = exoPlayer.currentMediaItemIndex,
+                currentTrackIndex = currentMediaIndex,
                 onTrackSelected = { index ->
-                    exoPlayer.seekToDefaultPosition(index)
-                    exoPlayer.playWhenReady = true
+                    controller?.seekToDefaultPosition(index)
+                    controller?.play()
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
             )
         }
 
         Slider(
             value = currentPosition.toFloat(),
-            onValueChange = { newValue ->
-                currentPosition = newValue.toLong()
-                exoPlayer.seekTo(currentPosition)
-            },
-            onValueChangeFinished = {
-                exoPlayer.seekTo(currentPosition)
-            },
-            valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
+            onValueChange = { currentPosition = it.toLong() },
+            onValueChangeFinished = { controller?.seekTo(currentPosition) },
+            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatTime(currentPosition))
             Text(formatTime(duration))
         }
-        Row(
-            modifier = Modifier.padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+
+        Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Previous
             if (actualAlbum != null) {
                 IconButton(
-                    onClick = {
-                        if (exoPlayer.hasPreviousMediaItem()) {
-                            exoPlayer.seekToPreviousMediaItem()
-                        }
-                    },
-                    enabled = exoPlayer.hasPreviousMediaItem(),
-                    modifier = Modifier.rotate(180f)
+                    onClick = { controller?.seekToPreviousMediaItem() },
+                    enabled = controller?.hasPreviousMediaItem() == true,
+                    modifier = Modifier.rotate(180f),
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.baseline_skip_next_24),
-                        contentDescription = "Previous track"
-                    )
+                    Icon(painterResource(R.drawable.baseline_skip_next_24), "Previous")
                 }
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
+            } else Spacer(Modifier.size(48.dp))
+
+            // Rewind 10s
+            IconButton(onClick = {
+                controller?.seekTo((controller.currentPosition - 10_000).coerceAtLeast(0))
+            }) {
+                Icon(painterResource(R.drawable.twotone_replay_10_24), "Rewind 10s")
             }
 
+            // Play / Pause
             IconButton(onClick = {
-                exoPlayer.seekTo(maxOf(0, exoPlayer.currentPosition - 10000))
+                if (isPlaying) controller?.pause() else controller?.play()
             }) {
                 Icon(
-                    painter = painterResource(id = R.drawable.twotone_replay_10_24),
-                    contentDescription = "Rewind 10 seconds"
+                    painterResource(if (isPlaying) R.drawable.twotone_pause_circle_24 else R.drawable.twotone_play_circle_24),
+                    if (isPlaying) "Pause" else "Play",
                 )
             }
 
-            IconButton(
-                onClick = {
-                    if (isPlaying) exoPlayer.pause() else exoPlayer.play()
-                }
-            ) {
-                Icon(
-                    painter = painterResource(id =
-                        if (isPlaying) R.drawable.twotone_pause_circle_24
-                        else R.drawable.twotone_play_circle_24
-                    ),
-                    contentDescription = if (isPlaying) "Pause" else "Play"
-                )
-            }
-
+            // Forward 10s
             IconButton(onClick = {
-                exoPlayer.seekTo(minOf(duration, exoPlayer.currentPosition + 10000))
+                controller?.seekTo((controller.currentPosition + 10_000).coerceAtMost(duration))
             }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.twotone_forward_10_24),
-                    contentDescription = "Forward 10 seconds"
-                )
+                Icon(painterResource(R.drawable.twotone_forward_10_24), "Forward 10s")
             }
 
+            // Next
             if (actualAlbum != null) {
                 IconButton(
-                    onClick = {
-                        if (exoPlayer.hasNextMediaItem()) {
-                            exoPlayer.seekToNextMediaItem()
-                        }
-                    },
-                    enabled = exoPlayer.hasNextMediaItem()
+                    onClick = { controller?.seekToNextMediaItem() },
+                    enabled = controller?.hasNextMediaItem() == true,
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.baseline_skip_next_24),
-                        contentDescription = "Next track"
-                    )
+                    Icon(painterResource(R.drawable.baseline_skip_next_24), "Next")
                 }
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentPosition = exoPlayer.currentPosition
-            delay(1000)
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.release()
+            } else Spacer(Modifier.size(48.dp))
         }
     }
 }
 
-/**
- * Creates a MediaItem from a URI string.
- * @param uriString The URI string of the media item. eg: "https://example.com/audio.mp3"
- * @param music The music object associated with the media item. eg: Music("Audio Title", "Artist", "Album")
- */
-private fun createMediaItemFromUri(uriString: String, music: MusicTrack? = null): MediaItem {
-    val uri = uriString.toUri()
-
-    return MediaItem.Builder()
-        .setUri(uri)
+private fun buildMediaItem(url: String, track: MusicTrack? = null): MediaItem =
+    MediaItem.Builder()
+        .setUri(url.toUri())
         .setMediaMetadata(
-            MediaMetadata.Builder().apply {
-                music?.let {
-                    setTitle(it.title)
-                    setArtist(it.artist)
-                    setAlbumTitle(it.album)
-                }
-                setDisplayTitle(music?.title ?: "Unknown Title")
-            }.build()
+            MediaMetadata.Builder()
+                .setTitle(track?.title ?: "Unknown Title")
+                .setArtist(track?.artist)
+                .setAlbumTitle(track?.album)
+                .setDisplayTitle(track?.title ?: "Unknown Title")
+                .build(),
         )
-        .setMimeType(getMimeTypeFromUri(uri))
+        .setMimeType(mimeTypeFor(url.toUri()))
         .build()
-}
 
-/**
- * Gets the MIME type of a URI string. eg: "audio/mpeg"
- * @param uri The URI string of the media item. eg: "https://example.com/audio.mp3"
- */
-private fun getMimeTypeFromUri(uri: Uri): String? {
-    return when {
-        uri.toString().contains(".mp3") -> "audio/mpeg"
-        uri.toString().contains(".m4a") -> "audio/mp4"
-        uri.toString().contains(".ogg") -> "audio/ogg"
-        uri.toString().contains(".wav") -> "audio/wav"
-        uri.toString().contains(".flac") -> "audio/flac"
-        else -> null
-    }
+private fun mimeTypeFor(uri: Uri): String? = when {
+    uri.toString().endsWith(".mp3")  -> "audio/mpeg"
+    uri.toString().endsWith(".m4a")  -> "audio/mp4"
+    uri.toString().endsWith(".ogg")  -> "audio/ogg"
+    uri.toString().endsWith(".opus") -> "audio/ogg"
+    uri.toString().endsWith(".wav")  -> "audio/wav"
+    uri.toString().endsWith(".flac") -> "audio/flac"
+    else -> null
 }
