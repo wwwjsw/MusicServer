@@ -48,7 +48,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.AppImage,
             )
             packageName = "MusicServer"
-            packageVersion = "1.4.0"
+            packageVersion = "1.5.0"
             description = "Music Server – Linux Desktop"
             vendor = "wwwjsw"
 
