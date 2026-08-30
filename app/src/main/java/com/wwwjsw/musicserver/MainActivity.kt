@@ -13,107 +13,58 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 class MainActivity : ComponentActivity() {
+
     private lateinit var server: MediaServer
     private lateinit var selectionFilter: FilterType
     private lateinit var musicListState: MutableState<List<MusicTrack>>
     private lateinit var albumsListState: MutableState<List<Album>>
 
+    // ── Permissions ───────────────────────────────────────────────────────────
 
-    private fun startServer() {
-        val musicPaths = Musics.getMusicPaths(this)
-        loadMusicsCoroutine()
-        selectionFilter = FilterType.ALL
-        Log.d("com.wwwjsw.musicserver.MediaServer", "Music paths: $musicPaths")
-        server = MediaServer(8080, this)
-
-        server.start()
-        musicPaths.forEach {}
-    }
-
-    private val requestMultiplePermissionsLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            permissions.entries.forEach { entry ->
-                Log.w("com.wwwjsw.musicserver.MediaServer", "Permission: ${entry.key}, Granted: ${entry.value}")
-            }
-
-            val allGranted = permissions.all { it.value }
-            if (allGranted) {
-                loadMusicsCoroutine()
-            } else {
-                Log.w("com.wwwjsw.musicserver.MediaServer", "Not all permissions were granted.")
-            }
+    private val requestPermissionsLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
+            perms.entries.forEach { Log.w(TAG, "Permission ${it.key}: ${it.value}") }
+            if (perms.all { it.value }) loadMusicsCoroutine()
+            else Log.w(TAG, "Some permissions denied")
         }
 
-    private fun loadMusicsCoroutine() {
-        // Use lifecycleScope to launch a coroutine
-        lifecycleScope.launch {
-            // withContext(Dispatchers.IO) move execution to a thread of input/output (data)
-            val (tracks, albums) = withContext(Dispatchers.IO) {
-                val t = Musics.getMusicTracks(this@MainActivity)
-                val a = Musics.getAlbums(this@MainActivity)
-                Pair(t, a)
-            }
-
-            // Back to Main Thread, update the interface
-            musicListState.value = tracks
-            albumsListState.value = albums
-        }
-    }
-    override fun onStart() {
-        super.onStart()
-
-        val neededPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
-        } else {
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        val permissionsToRequest = neededPermissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            Log.w(
-                "com.wwwjsw.musicserver.MediaServer",
-                "Requesting permissions: $permissionsToRequest"
-            )
-            requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
-        } else {
-            Log.i(
-                "com.wwwjsw.musicserver.MediaServer",
-                "All permissions are already granted."
-            )
-            loadMusicsCoroutine()
-        }
-    }
-
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        musicListState = mutableStateOf(emptyList())
+        musicListState  = mutableStateOf(emptyList())
         albumsListState = mutableStateOf(emptyList())
 
+        // Connect UI to the player service (creates service if needed)
+        MusicPlayerConnection.connect(this)
+
         setContent {
+            val controller by MusicPlayerConnection.controller.collectAsState()
+
             MusicServerTheme {
                 MainActivityContent(
-                    localNetworkIp = server.getLocalIpAddress(),
-                    colors = MaterialTheme.colorScheme,
-                    musicListState,
-                    albumsListState,
-                    context = this
+                    localNetworkIp  = server.getLocalIpAddress(),
+                    colors          = MaterialTheme.colorScheme,
+                    musicListState  = musicListState,
+                    albumsListState = albumsListState,
+                    context         = this,
+                    controller      = controller,
                 )
             }
         }
@@ -121,19 +72,54 @@ class MainActivity : ComponentActivity() {
         startServer()
     }
 
+    override fun onStart() {
+        super.onStart()
+        val needed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
+        else
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+
+        val missing = needed.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isNotEmpty()) requestPermissionsLauncher.launch(missing.toTypedArray())
+        else loadMusicsCoroutine()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         server.stop()
+        // Release the MediaController binding (service keeps running until OS kills it)
+        MusicPlayerConnection.release()
     }
+
+    // ── Internal ──────────────────────────────────────────────────────────────
+
+    private fun startServer() {
+        selectionFilter = FilterType.ALL
+        server = MediaServer(8080, this)
+        server.start()
+        Log.d(TAG, "Music paths: ${Musics.getMusicPaths(this)}")
+    }
+
+    private fun loadMusicsCoroutine() {
+        lifecycleScope.launch {
+            val (tracks, albums) = withContext(Dispatchers.IO) {
+                Pair(Musics.getMusicTracks(this@MainActivity), Musics.getAlbums(this@MainActivity))
+            }
+            musicListState.value  = tracks
+            albumsListState.value = albums
+        }
+    }
+
+    companion object { private const val TAG = "MainActivity" }
 }
 
 fun openWebPlayer(context: Context, localNetworkIp: String?) {
     localNetworkIp?.let {
-        val url = "http://$it:8080"
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = url.toUri()
-        }
-        context.startActivity(intent)
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW).apply { data = "http://$it:8080".toUri() }
+        )
     }
 }
-

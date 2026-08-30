@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.session.MediaController
 import com.wwwjsw.musicserver.AudioDetailsBottomSheet
 import com.wwwjsw.musicserver.models.MusicTrack
 
@@ -31,14 +32,15 @@ class ListOfMusic {
     fun Render(
         musicList: List<MusicTrack> = emptyList(),
         colors: ColorScheme,
-        localNetworkIp: String?
+        localNetworkIp: String?,
+        controller: MediaController?,
     ) {
         val audioDetailsBottomSheet = remember { AudioDetailsBottomSheet() }
         var selectedDetails by remember { mutableStateOf("") }
 
         Log.i("com.wwwjsw.musicserver", "Music tracks: $musicList  $localNetworkIp")
 
-        audioDetailsBottomSheet.Content {
+        audioDetailsBottomSheet.Content(controller = controller) {
             LazyColumn (modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 items(musicList) { music ->
                     Column(modifier = Modifier
@@ -46,11 +48,9 @@ class ListOfMusic {
                             selectedDetails = "TODO: Remove this data"
                             if (localNetworkIp != null) {
                                 audioDetailsBottomSheet.open(
-                                    selectedDetails,
-                                    music.id,
-                                    localNetworkIp,
-                                    music,
-                                    null
+                                    id = music.id,
+                                    localNetworkIp = localNetworkIp,
+                                    music = music,
                                 )
                             }
                         }

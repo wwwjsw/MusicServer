@@ -1,0 +1,54 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Android App" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="true" showConsoleOnStdErr="false" showConsoleOnStdOut="false">
+    <module name="Music Server.app.main" />
+    <option name="DEPLOY" value="true" />
+    <option name="DEPLOY_APK_FROM_BUNDLE" value="false" />
+    <option name="DEPLOY_AS_INSTANT" value="false" />
+    <option name="ARTIFACT_NAME" value="" />
+    <option name="PM_INSTALL_OPTIONS" value="" />
+    <option name="ALL_USERS" value="false" />
+    <option name="ALWAYS_INSTALL_WITH_PM" value="false" />
+    <option name="RETRY_INSTALL_WITH_PM" value="false" />
+    <option name="FORCE_STOP_RUNNING_APP" value="true" />
+    <option name="SKIP_VERIFICATION" value="false" />
+    <option name="ACTIVITY_EXTRA_FLAGS" value="" />
+    <option name="MODE" value="default_activity" />
+    <option name="CLEAR_LOGCAT" value="false" />
+    <option name="SHOW_LOGCAT_AUTOMATICALLY" value="false" />
+    <option name="INSPECTION_WITHOUT_ACTIVITY_RESTART" value="false" />
+    <option name="TARGET_SELECTION_MODE" value="DEVICE_AND_SNAPSHOT_COMBO_BOX" />
+    <option name="DEBUGGER_TYPE" value="Auto" />
+    <Auto>
+      <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+      <option name="SHOW_STATIC_VARS" value="true" />
+      <option name="WORKING_DIR" value="" />
+      <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+      <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+      <option name="DETACH_IS_STOP" value="false" />
+    </Auto>
+    <Hybrid>
+      <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+      <option name="SHOW_STATIC_VARS" value="true" />
+      <option name="WORKING_DIR" value="" />
+      <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+      <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+      <option name="DETACH_IS_STOP" value="false" />
+    </Hybrid>
+    <Java />
+    <Native>
+      <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+      <option name="SHOW_STATIC_VARS" value="true" />
+      <option name="WORKING_DIR" value="" />
+      <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+      <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+      <option name="DETACH_IS_STOP" value="false" />
+    </Native>
+    <ProfilerState>
+      <option name="PROFILING_MODE" value="NOT_SET" />
+      <option name="STARTUP_CPU_PROFILING_ENABLED" value="false" />
+      <option name="STARTUP_CPU_PROFILING_CONFIGURATION_NAME" value="Java/Kotlin Recorded Method Trace" />
+      <option name="NATIVE_MEMORY_SAMPLE_INTERVAL_BYTES" value="2048" />
+    </ProfilerState>
+    <method v="2" />
+  </configuration>
+</component>

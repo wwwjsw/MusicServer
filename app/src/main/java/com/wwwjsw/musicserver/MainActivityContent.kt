@@ -34,6 +34,7 @@ import com.wwwjsw.musicserver.local.StaticLists.menuItems
 import com.wwwjsw.musicserver.models.Album
 import com.wwwjsw.musicserver.models.FilterType
 import com.wwwjsw.musicserver.models.MusicTrack
+import androidx.media3.session.MediaController
 import com.wwwjsw.musicserver.ui.list.ListOfAlbums
 import com.wwwjsw.musicserver.ui.list.ListOfMusic
 import com.wwwjsw.musicserver.ui.theme.MusicServerTheme
@@ -45,6 +46,7 @@ fun MainActivityContent(
     musicListState: MutableState<List<MusicTrack>>,
     albumsListState: MutableState<List<Album>>,
     context: Context,
+    controller: MediaController?,
 ) {
     // Replace regular variable with mutableState
     var selectionFilter by remember { mutableStateOf(FilterType.ALBUMS) }
@@ -127,7 +129,8 @@ fun MainActivityContent(
                             ListOfMusic().Render(
                                 musicList = musicList.value,
                                 colors = colors,
-                                localNetworkIp = localNetworkIp
+                                localNetworkIp = localNetworkIp,
+                                controller = controller,
                             )
                         }
                         if (selectionFilter == FilterType.ALBUMS) {
@@ -136,6 +139,7 @@ fun MainActivityContent(
                                 albumList = albumsList.value,
                                 localNetworkIp = localNetworkIp,
                                 colors = colors,
+                                controller = controller,
                             )
                         }
                     }
