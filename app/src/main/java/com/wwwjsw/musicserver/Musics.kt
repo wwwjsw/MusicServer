@@ -60,34 +60,43 @@ object Musics {
         }
     }
 
+    /**
+     * Returns the full album list without loading thumbnails.
+     * Thumbnails are fetched on demand in the UI via [loadAlbumArtThumbnail],
+     * called only when each item becomes visible in the lazy list.
+     */
     fun getAlbums(context: Context): List<Album> {
         val albumUri = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Albums._ID,
             MediaStore.Audio.Albums.ALBUM,
             MediaStore.Audio.Albums.ARTIST,
-            MediaStore.Audio.Albums.NUMBER_OF_SONGS
+            MediaStore.Audio.Albums.NUMBER_OF_SONGS,
         )
         val albumList = mutableListOf<Album>()
 
         context.contentResolver.query(albumUri, projection, null, null, null)?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID)
+            val idColumn        = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID)
             val albumNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM)
 
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
+                val id        = cursor.getLong(idColumn)
                 val albumName = cursor.getString(albumNameColumn)
-                val musics = getMusics(context, id)
+                val musics    = getMusics(context, id)
 
                 if (musics.isNotEmpty()) {
-                    val albumArt = loadAlbumArtThumbnail(context, id)
-                    albumList.add(Album(id, albumName, musics, albumArt))
+                    // thumbnail = null intentionally — loaded lazily in the UI
+                    albumList.add(Album(id, albumName, musics, thumbnail = null))
                 }
             }
         }
 
         return albumList
     }
+
+    /** Public so the UI can request a thumbnail on demand (lazy loading). */
+    fun loadAlbumThumbnail(context: Context, albumId: Long) =
+        loadAlbumArtThumbnail(context, albumId)
 
     private fun getBitmapFromDrawable(context: Context, @DrawableRes drawableId: Int): Bitmap? {
         return ContextCompat.getDrawable(context, drawableId)?.toBitmap()
