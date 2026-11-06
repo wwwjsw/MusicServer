@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -53,6 +54,14 @@ fun MainActivityContent(
     val musicList = remember { musicListState }
     val albumsList = remember { albumsListState }
 
+    // The guide opens by itself on first use and can be re-opened from the navbar.
+    var showTutorial by remember { mutableStateOf(isTutorialFirstRun(context)) }
+
+    fun dismissTutorial() {
+        markTutorialSeen(context)
+        showTutorial = false
+    }
+
     MusicServerTheme {
         Box(modifier = Modifier
             .background(colors.background)
@@ -60,6 +69,23 @@ fun MainActivityContent(
             .padding(WindowInsets.statusBars.asPaddingValues())
         ) {
             Column {
+                // Navbar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Music Server",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    TutorialHelpButton(onClick = { showTutorial = true })
+                }
+                if (showTutorial) {
+                    UserTutorialDialog(onDismiss = { dismissTutorial() })
+                }
                 if (localNetworkIp != null) {
                     Box(modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 15.dp)
