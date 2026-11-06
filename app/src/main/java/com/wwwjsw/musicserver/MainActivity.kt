@@ -106,7 +106,7 @@ class MainActivity : ComponentActivity() {
     private fun loadMusicsCoroutine() {
         lifecycleScope.launch {
             val (tracks, albums) = withContext(Dispatchers.IO) {
-                Pair(Musics.getMusicTracks(this@MainActivity), Musics.getAlbums(this@MainActivity))
+                Musics.getMusicTracks(this@MainActivity) to Musics.getAlbums(this@MainActivity)
             }
             musicListState.value  = tracks
             albumsListState.value = albums
