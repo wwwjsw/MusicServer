@@ -60,6 +60,14 @@ object Musics {
         }
     }
 
+    /**
+     * Returns the full album list without loading any album artwork.
+     * Thumbnails are fetched on demand in the UI via [loadAlbumThumbnail],
+     * called only when each item becomes visible in the lazy list.
+     *
+     * The track lists carried by each [Album] are also built without artwork
+     * ([loadMusicArtThumbnail] is skipped), so this call does no thumbnail I/O.
+     */
     fun getAlbums(context: Context): List<Album> {
         val albumUri = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
@@ -77,17 +85,21 @@ object Musics {
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
                 val albumName = cursor.getString(albumNameColumn)
-                val musics = getMusics(context, id)
+                val musics = getMusics(context, id, loadThumbnails = false)
 
                 if (musics.isNotEmpty()) {
-                    val albumArt = loadAlbumArtThumbnail(context, id)
-                    albumList.add(Album(id, albumName, musics, albumArt))
+                    // thumbnail = null intentionally — loaded lazily in the UI
+                    albumList.add(Album(id, albumName, musics, thumbnail = null))
                 }
             }
         }
 
         return albumList
     }
+
+    /** Public so the UI can request a thumbnail on demand (lazy loading). */
+    fun loadAlbumThumbnail(context: Context, albumId: Long) =
+        loadAlbumArtThumbnail(context, albumId)
 
     private fun getBitmapFromDrawable(context: Context, @DrawableRes drawableId: Int): Bitmap? {
         return ContextCompat.getDrawable(context, drawableId)?.toBitmap()
@@ -153,7 +165,15 @@ object Musics {
         }
     }
 
-    fun getMusics(context: Context, albumId: Long): List<MusicTrack> {
+    /**
+     * Tracks of one album. [loadThumbnails] = false skips the per-track artwork
+     * read, which is what [getAlbums] uses to keep album loading free of I/O.
+     */
+    fun getMusics(
+        context: Context,
+        albumId: Long,
+        loadThumbnails: Boolean = true,
+    ): List<MusicTrack> {
         val audioUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
@@ -174,8 +194,9 @@ object Musics {
                 val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
                 val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
                 val uri = ContentUris.withAppendedId(audioUri, id).toString()
+                val thumbnail = if (loadThumbnails) loadMusicArtThumbnail(context, id) else null
 
-                musicList.add(MusicTrack(id, title, artist, album, duration, uri))
+                musicList.add(MusicTrack(id, title, artist, album, duration, uri, thumbnail))
             }
         }
 
