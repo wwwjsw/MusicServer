@@ -54,12 +54,14 @@ fun MainActivityContent(
     val musicList = remember { musicListState }
     val albumsList = remember { albumsListState }
 
-    // The guide opens by itself on first use and can be re-opened from the navbar.
-    var showTutorial by remember { mutableStateOf(isTutorialFirstRun(context)) }
+    // The guide opens by itself on first use (only counts as seen once the user
+    // finishes or skips it) and can be re-opened from the navbar at any time.
+    var firstRunTutorial by remember { mutableStateOf(isTutorialFirstRun(context)) }
+    var showTutorial by remember { mutableStateOf(false) }
 
-    fun dismissTutorial() {
+    fun markTutorialCompleted() {
         markTutorialSeen(context)
-        showTutorial = false
+        firstRunTutorial = false
     }
 
     MusicServerTheme {
@@ -83,8 +85,16 @@ fun MainActivityContent(
                     )
                     TutorialHelpButton(onClick = { showTutorial = true })
                 }
-                if (showTutorial) {
-                    UserTutorialDialog(onDismiss = { dismissTutorial() })
+                if (firstRunTutorial) {
+                    UserTutorialDialog(
+                        firstRun = true,
+                        onCompleted = { markTutorialCompleted() },
+                    )
+                } else if (showTutorial) {
+                    UserTutorialDialog(
+                        firstRun = false,
+                        onCompleted = { showTutorial = false },
+                    )
                 }
                 if (localNetworkIp != null) {
                     Box(modifier = Modifier

@@ -113,21 +113,35 @@ fun TutorialHelpButton(
 }
 
 /**
- * Paginated first-run guide: the user moves through the steps and the dialog is
- * only dismissed ("Get started") on the last page.
+ * Paginated user guide.
+ *
+ * @param firstRun true for the automatic first-run dialog: it offers "Pular" on
+ *   the first page and reports completion with [onCompleted].
+ * @param onCompleted the guide was finished or skipped, so it is not shown again
+ *   automatically.
+ * @param onDismiss the dialog was closed without completing it (only possible
+ *   when [firstRun] is false).
  */
 @Composable
 fun UserTutorialDialog(
-    onDismiss: () -> Unit,
+    firstRun: Boolean,
+    onCompleted: () -> Unit,
+    onDismiss: () -> Unit = onCompleted,
 ) {
     var stepIndex by rememberSaveable { mutableIntStateOf(0) }
     val lastStep = stepIndex == tutorialSteps.lastIndex
     val step = tutorialSteps[stepIndex]
 
-    BackHandler { if (stepIndex > 0) stepIndex-- else onDismiss() }
+    BackHandler {
+        when {
+            stepIndex > 0 -> stepIndex--
+            firstRun -> onCompleted()
+            else -> onDismiss()
+        }
+    }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!firstRun) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -154,7 +168,11 @@ fun UserTutorialDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (lastStep) onDismiss() else stepIndex++
+                    if (lastStep) {
+                        if (firstRun) onCompleted() else onDismiss()
+                    } else {
+                        stepIndex++
+                    }
                 },
             ) {
                 Text(if (lastStep) "Começar" else "Próximo")
@@ -163,8 +181,8 @@ fun UserTutorialDialog(
         dismissButton = {
             if (stepIndex > 0) {
                 TextButton(onClick = { stepIndex-- }) { Text("Voltar") }
-            } else {
-                TextButton(onClick = onDismiss) { Text("Pular") }
+            } else if (firstRun) {
+                TextButton(onClick = onCompleted) { Text("Pular") }
             }
         },
     )
