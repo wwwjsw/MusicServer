@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -53,6 +54,16 @@ fun MainActivityContent(
     val musicList = remember { musicListState }
     val albumsList = remember { albumsListState }
 
+    // The guide opens by itself on first use (only counts as seen once the user
+    // finishes or skips it) and can be re-opened from the navbar at any time.
+    var firstRunTutorial by remember { mutableStateOf(isTutorialFirstRun(context)) }
+    var showTutorial by remember { mutableStateOf(false) }
+
+    fun markTutorialCompleted() {
+        markTutorialSeen(context)
+        firstRunTutorial = false
+    }
+
     MusicServerTheme {
         Box(modifier = Modifier
             .background(colors.background)
@@ -60,6 +71,31 @@ fun MainActivityContent(
             .padding(WindowInsets.statusBars.asPaddingValues())
         ) {
             Column {
+                // Navbar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Music Server",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    TutorialHelpButton(onClick = { showTutorial = true })
+                }
+                if (firstRunTutorial) {
+                    UserTutorialDialog(
+                        firstRun = true,
+                        onCompleted = { markTutorialCompleted() },
+                    )
+                } else if (showTutorial) {
+                    UserTutorialDialog(
+                        firstRun = false,
+                        onCompleted = { showTutorial = false },
+                    )
+                }
                 if (localNetworkIp != null) {
                     Box(modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 15.dp)
